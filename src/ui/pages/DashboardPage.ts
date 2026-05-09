@@ -24,6 +24,12 @@ import { WeeklyComparisonPanel } from '../components/WeeklyComparisonPanel';
 import { TrendSparkline } from '../components/TrendSparkline';
 import { CalculateDataQuality } from '../../application/CalculateDataQuality';
 import { DataQualityIndicator } from '../components/DataQualityIndicator';
+import { CalculateHourlyHeatmap } from '../../application/CalculateHourlyHeatmap';
+import { HourlyHeatmap } from '../components/HourlyHeatmap';
+import { CalculateDistributionHistogram } from '../../application/CalculateDistributionHistogram';
+import { DistributionHistogram } from '../components/DistributionHistogram';
+import { CalculatePeriodComparison } from '../../application/CalculatePeriodComparison';
+import { PeriodComparisonPanel } from '../components/PeriodComparisonPanel';
 
 const REFRESH_INTERVAL_MS = 300000;
 
@@ -132,6 +138,9 @@ export class DashboardPage {
     const analyzeAdvanced = new AnalyzeAdvancedMetrics(thresholds);
     const calculateWeekly = new CalculateWeeklyComparison(thresholds);
     const calculateDailyTrends = new CalculateDailyTrends(thresholds);
+    const calculateHeatmap = new CalculateHourlyHeatmap(thresholds);
+    const calculateHistogram = new CalculateDistributionHistogram(thresholds);
+    const calculatePeriodComparison = new CalculatePeriodComparison(thresholds);
 
     // View mode selector container
     const viewModeContainer = document.createElement('div');
@@ -201,6 +210,9 @@ export class DashboardPage {
             calculateWeekly,
             calculateDailyTrends,
             analyzePatterns,
+            calculateHeatmap,
+            calculateHistogram,
+            calculatePeriodComparison,
           });
         }
       } catch (err) {
@@ -288,6 +300,9 @@ export class DashboardPage {
       calculateWeekly: CalculateWeeklyComparison;
       calculateDailyTrends: CalculateDailyTrends;
       analyzePatterns: AnalyzeHourlyPatterns;
+      calculateHeatmap: CalculateHourlyHeatmap;
+      calculateHistogram: CalculateDistributionHistogram;
+      calculatePeriodComparison: CalculatePeriodComparison;
     }
   ): void {
     if (history.length === 0) {
@@ -308,6 +323,14 @@ export class DashboardPage {
     const qualityIndicator = new DataQualityIndicator(qualityContainer);
     qualityIndicator.render(dataQuality);
 
+    const periodComparison = services.calculatePeriodComparison.execute(history);
+    if (periodComparison) {
+      const comparisonContainer = document.createElement('div');
+      main.appendChild(comparisonContainer);
+      const comparisonPanel = new PeriodComparisonPanel(comparisonContainer);
+      comparisonPanel.render(periodComparison);
+    }
+
     if (advancedMetrics) {
       const advancedContainer = document.createElement('div');
       main.appendChild(advancedContainer);
@@ -321,6 +344,18 @@ export class DashboardPage {
       const sparkline = new TrendSparkline(sparklineContainer);
       sparkline.render(dailyTrends);
     }
+
+    const heatmapData = services.calculateHeatmap.execute(history);
+    const heatmapContainer = document.createElement('div');
+    main.appendChild(heatmapContainer);
+    const heatmap = new HourlyHeatmap(heatmapContainer);
+    heatmap.render(heatmapData);
+
+    const histogramData = services.calculateHistogram.execute(history);
+    const histogramContainer = document.createElement('div');
+    main.appendChild(histogramContainer);
+    const histogram = new DistributionHistogram(histogramContainer);
+    histogram.render(histogramData);
 
     if (weeklyMetrics.length > 0) {
       const weeklyContainer = document.createElement('div');
