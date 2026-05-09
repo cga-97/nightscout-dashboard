@@ -31,6 +31,9 @@ import { CalculateDistributionHistogram } from '../../application/CalculateDistr
 import { DistributionHistogram } from '../components/DistributionHistogram';
 import { CalculatePeriodComparison } from '../../application/CalculatePeriodComparison';
 import { PeriodComparisonPanel } from '../components/PeriodComparisonPanel';
+import { TreatmentsPanel } from '../components/TreatmentsPanel';
+import { CheckSevereHypo } from '../../application/CheckSevereHypo';
+import { NotificationService } from '../../application/NotificationService';
 
 const REFRESH_INTERVAL_MS = 300000;
 
@@ -82,6 +85,7 @@ export class DashboardPage {
 
     const controls = document.createElement('div');
     controls.className = 'header-controls';
+    controls.appendChild(this.createNotificationButton());
     controls.appendChild(this.createSettingsButton());
     header.appendChild(controls);
 
@@ -107,6 +111,26 @@ export class DashboardPage {
 
     const thresholds = getThresholds();
     this.loadDashboard(main, config.baseUrl, config.apiSecret, thresholds);
+  }
+
+  private createNotificationButton(): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm';
+    btn.textContent = '🔔';
+    btn.title = 'Enable notifications';
+    btn.addEventListener('click', async () => {
+      const granted = await NotificationService.getInstance().requestPermission();
+      if (granted) {
+        btn.textContent = '🔔';
+        btn.title = 'Notifications enabled';
+        btn.style.opacity = '1';
+      } else {
+        btn.title = 'Notifications blocked';
+        btn.style.opacity = '0.5';
+      }
+    });
+    return btn;
   }
 
   private createSettingsButton(): HTMLButtonElement {
@@ -142,6 +166,7 @@ export class DashboardPage {
     const calculateHeatmap = new CalculateHourlyHeatmap(thresholds);
     const calculateHistogram = new CalculateDistributionHistogram(thresholds);
     const calculatePeriodComparison = new CalculatePeriodComparison(thresholds);
+    const checkHypo = new CheckSevereHypo();
 
     // View mode selector container
     const viewModeContainer = document.createElement('div');
@@ -183,6 +208,12 @@ export class DashboardPage {
           getHistory.execute(this.selectedHours),
           apiClient.getTreatments(cutoff),
         ]);
+
+        // Check for severe hypo and notify
+        const hypoAlert = checkHypo.execute(current);
+        if (hypoAlert.triggered && hypoAlert.value !== undefined) {
+          NotificationService.getInstance().sendSevereHypoAlert(hypoAlert.value);
+        }
 
         main.innerHTML = '';
 
@@ -288,6 +319,11 @@ export class DashboardPage {
       main.appendChild(eventsContainer);
       const eventsPanel = new EventsPanel(eventsContainer);
       eventsPanel.render(events);
+
+      const treatmentsContainer = document.createElement('div');
+      main.appendChild(treatmentsContainer);
+      const treatmentsPanel = new TreatmentsPanel(treatmentsContainer);
+      treatmentsPanel.render(treatments);
     } else {
       const noStats = document.createElement('div');
       noStats.className = 'card message';

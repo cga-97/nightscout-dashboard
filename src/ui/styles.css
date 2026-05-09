@@ -465,6 +465,12 @@ body {
   font-weight: 600;
 }
 
+.target-status {
+  font-size: var(--font-sm);
+  margin-top: var(--spacing-xs);
+  font-weight: 600;
+}
+
 /* Header Controls */
 .header-controls {
   display: flex;
