@@ -1,4 +1,5 @@
 import { GlucoseReading } from '../../domain/models/GlucoseReading';
+import { Treatment } from '../../domain/models/Treatment';
 
 const CANVAS_HEIGHT = 160;
 const CANVAS_WIDTH = 640;
@@ -13,7 +14,7 @@ export class GlucoseChart {
     this.hoursToShow = hoursToShow;
   }
 
-  render(readings: GlucoseReading[]): void {
+  render(readings: GlucoseReading[], treatments: Treatment[] = []): void {
     this.container.innerHTML = '';
 
     if (readings.length === 0) {
@@ -37,12 +38,50 @@ export class GlucoseChart {
     chartContainer.appendChild(canvas);
     wrapper.appendChild(chartContainer);
 
+    // Legend for treatments
+    if (treatments.length > 0) {
+      const legend = document.createElement('div');
+      legend.style.display = 'flex';
+      legend.style.gap = 'var(--spacing-md)';
+      legend.style.marginTop = 'var(--spacing-sm)';
+      legend.style.fontSize = 'var(--font-sm)';
+      legend.style.color = 'var(--text-secondary)';
+
+      const carbLegend = document.createElement('div');
+      carbLegend.style.display = 'flex';
+      carbLegend.style.alignItems = 'center';
+      carbLegend.style.gap = '4px';
+      const carbDot = document.createElement('span');
+      carbDot.style.width = '8px';
+      carbDot.style.height = '8px';
+      carbDot.style.borderRadius = '50%';
+      carbDot.style.backgroundColor = '#f59e0b';
+      carbLegend.appendChild(carbDot);
+      carbLegend.appendChild(document.createTextNode('Carbs'));
+      legend.appendChild(carbLegend);
+
+      const insulinLegend = document.createElement('div');
+      insulinLegend.style.display = 'flex';
+      insulinLegend.style.alignItems = 'center';
+      insulinLegend.style.gap = '4px';
+      const insulinDot = document.createElement('span');
+      insulinDot.style.width = '8px';
+      insulinDot.style.height = '8px';
+      insulinDot.style.borderRadius = '50%';
+      insulinDot.style.backgroundColor = '#3b82f6';
+      insulinLegend.appendChild(insulinDot);
+      insulinLegend.appendChild(document.createTextNode('Insulin'));
+      legend.appendChild(insulinLegend);
+
+      wrapper.appendChild(legend);
+    }
+
     this.container.appendChild(wrapper);
 
-    this.draw(canvas, readings);
+    this.draw(canvas, readings, treatments);
   }
 
-  private draw(canvas: HTMLCanvasElement, readings: GlucoseReading[]): void {
+  private draw(canvas: HTMLCanvasElement, readings: GlucoseReading[], treatments: Treatment[] = []): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       return;
@@ -140,6 +179,44 @@ export class GlucoseChart {
       ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fillStyle = reading.value >= 70 && reading.value <= 180 ? '#4ade80' : '#f87171';
       ctx.fill();
+    });
+
+    // Treatment markers
+    const filteredTreatments = treatments.filter(
+      (t) => t.timestamp.getTime() >= cutoff && t.timestamp.getTime() <= now
+    );
+
+    filteredTreatments.forEach((treatment) => {
+      const x = getX(treatment.timestamp.getTime());
+      const markerY = height - PADDING - 4;
+
+      if (treatment.carbs && treatment.carbs > 0) {
+        // Orange circle for carbs
+        ctx.beginPath();
+        ctx.arc(x, markerY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      if (treatment.insulin && treatment.insulin > 0) {
+        // Blue triangle for insulin (offset slightly if both exist)
+        const offset = treatment.carbs ? -10 : 0;
+        const triangleY = markerY + offset;
+
+        ctx.beginPath();
+        ctx.moveTo(x, triangleY - 5);
+        ctx.lineTo(x - 4, triangleY + 3);
+        ctx.lineTo(x + 4, triangleY + 3);
+        ctx.closePath();
+        ctx.fillStyle = '#3b82f6';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     });
 
     // Labels

@@ -2,6 +2,7 @@ import { NightscoutApiClient } from '../../infrastructure/api/NightscoutApiClien
 import { getConfig, clearConfig, getThresholds, getViewMode, getLiveRange, getAnalysisRange, saveViewMode, saveLiveRange, saveAnalysisRange } from '../../infrastructure/storage/LocalStorageConfig';
 import { GetCurrentGlucose } from '../../application/GetCurrentGlucose';
 import { GetGlucoseHistory } from '../../application/GetGlucoseHistory';
+import { Treatment } from '../../domain/models/Treatment';
 import { CalculateTimeInRange } from '../../application/CalculateTimeInRange';
 import { CalculateVariability } from '../../application/CalculateVariability';
 import { CalculateGMI } from '../../application/CalculateGMI';
@@ -176,9 +177,11 @@ export class DashboardPage {
       this.showLoading(main);
 
       try {
-        const [current, history] = await Promise.all([
+        const cutoff = new Date(Date.now() - this.selectedHours * 60 * 60 * 1000);
+        const [current, history, treatments] = await Promise.all([
           getCurrent.execute(),
           getHistory.execute(this.selectedHours),
+          apiClient.getTreatments(cutoff),
         ]);
 
         main.innerHTML = '';
@@ -198,7 +201,7 @@ export class DashboardPage {
         rangeSelector.setActiveHours(this.selectedHours);
 
         if (this.viewMode === 'live') {
-          this.renderLiveView(main, current, history, {
+          this.renderLiveView(main, current, history, treatments, {
             calculateTir,
             calculateVariability,
             calculateGMI,
@@ -234,6 +237,7 @@ export class DashboardPage {
     main: HTMLElement,
     current: import('../../domain/models/GlucoseReading').GlucoseReading | null,
     history: import('../../domain/models/GlucoseReading').GlucoseReading[],
+    treatments: Treatment[],
     services: {
       calculateTir: CalculateTimeInRange;
       calculateVariability: CalculateVariability;
@@ -258,7 +262,7 @@ export class DashboardPage {
     const chartContainer = document.createElement('div');
     main.appendChild(chartContainer);
     const chart = new GlucoseChart(chartContainer, this.selectedHours);
-    chart.render(history);
+    chart.render(history, treatments);
 
     const statsContainer = document.createElement('div');
     main.appendChild(statsContainer);
