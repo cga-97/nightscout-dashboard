@@ -1,10 +1,22 @@
+export interface RangeOption {
+  label: string;
+  hours: number;
+}
+
 export class RangeSelector {
   private readonly container: HTMLElement;
+  private readonly options: RangeOption[];
   private readonly onChange: (hours: number) => void;
   private activeHours: number;
 
-  constructor(container: HTMLElement, onChange: (hours: number) => void, initialHours = 24) {
+  constructor(
+    container: HTMLElement,
+    options: RangeOption[],
+    onChange: (hours: number) => void,
+    initialHours = 6
+  ) {
     this.container = container;
+    this.options = options;
     this.onChange = onChange;
     this.activeHours = initialHours;
   }
@@ -15,13 +27,7 @@ export class RangeSelector {
     const wrapper = document.createElement('div');
     wrapper.className = 'range-selector';
 
-    const options: { label: string; hours: number }[] = [
-      { label: '6h', hours: 6 },
-      { label: '12h', hours: 12 },
-      { label: '24h', hours: 24 },
-    ];
-
-    options.forEach((opt) => {
+    this.options.forEach((opt) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'range-btn';

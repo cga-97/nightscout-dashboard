@@ -1,5 +1,5 @@
 import { NightscoutApiClient } from '../../infrastructure/api/NightscoutApiClient';
-import { getConfig, clearConfig } from '../../infrastructure/storage/LocalStorageConfig';
+import { getConfig, clearConfig, getThresholds, getViewMode, getLiveRange, getAnalysisRange, saveViewMode, saveLiveRange, saveAnalysisRange } from '../../infrastructure/storage/LocalStorageConfig';
 import { GetCurrentGlucose } from '../../application/GetCurrentGlucose';
 import { GetGlucoseHistory } from '../../application/GetGlucoseHistory';
 import { CalculateTimeInRange } from '../../application/CalculateTimeInRange';
@@ -7,6 +7,9 @@ import { CalculateVariability } from '../../application/CalculateVariability';
 import { CalculateGMI } from '../../application/CalculateGMI';
 import { CountCriticalEvents } from '../../application/CountCriticalEvents';
 import { AnalyzeHourlyPatterns } from '../../application/AnalyzeHourlyPatterns';
+import { AnalyzeAdvancedMetrics } from '../../application/AnalyzeAdvancedMetrics';
+import { CalculateWeeklyComparison } from '../../application/CalculateWeeklyComparison';
+import { CalculateDailyTrends } from '../../application/CalculateDailyTrends';
 import { ConfigForm } from '../components/ConfigForm';
 import { CurrentGlucose } from '../components/CurrentGlucose';
 import { GlucoseChart } from '../components/GlucoseChart';
@@ -15,16 +18,50 @@ import { VariabilityPanel } from '../components/VariabilityPanel';
 import { EventsPanel } from '../components/EventsPanel';
 import { PatternsPanel } from '../components/PatternsPanel';
 import { RangeSelector } from '../components/RangeSelector';
+import { ViewModeSelector, type ViewMode } from '../components/ViewModeSelector';
+import { AdvancedMetricsPanel } from '../components/AdvancedMetricsPanel';
+import { WeeklyComparisonPanel } from '../components/WeeklyComparisonPanel';
+import { TrendSparkline } from '../components/TrendSparkline';
+import { CalculateDataQuality } from '../../application/CalculateDataQuality';
+import { DataQualityIndicator } from '../components/DataQualityIndicator';
 
 const REFRESH_INTERVAL_MS = 300000;
+
+const LIVE_OPTIONS = [
+  { label: '6h', hours: 6 },
+  { label: '12h', hours: 12 },
+  { label: '24h', hours: 24 },
+];
+
+const ANALYSIS_OPTIONS = [
+  { label: '7d', hours: 168 },
+  { label: '14d', hours: 336 },
+  { label: '30d', hours: 720 },
+  { label: '60d', hours: 1440 },
+  { label: '90d', hours: 2160 },
+];
 
 export class DashboardPage {
   private readonly app: HTMLElement;
   private intervalId: number | null = null;
-  private selectedHours = 6;
+  private viewMode: ViewMode = getViewMode();
+  private selectedHoursLive = getLiveRange();
+  private selectedHoursAnalysis = getAnalysisRange();
 
   constructor(app: HTMLElement) {
     this.app = app;
+  }
+
+  private get selectedHours(): number {
+    return this.viewMode === 'live' ? this.selectedHoursLive : this.selectedHoursAnalysis;
+  }
+
+  private set selectedHours(hours: number) {
+    if (this.viewMode === 'live') {
+      this.selectedHoursLive = hours;
+    } else {
+      this.selectedHoursAnalysis = hours;
+    }
   }
 
   mount(): void {
@@ -35,7 +72,12 @@ export class DashboardPage {
     const headerTitle = document.createElement('h1');
     headerTitle.textContent = 'Nightscout Dashboard';
     header.appendChild(headerTitle);
-    header.appendChild(this.createSettingsButton());
+
+    const controls = document.createElement('div');
+    controls.className = 'header-controls';
+    controls.appendChild(this.createSettingsButton());
+    header.appendChild(controls);
+
     this.app.appendChild(header);
 
     const main = document.createElement('main');
@@ -56,7 +98,8 @@ export class DashboardPage {
       return;
     }
 
-    this.loadDashboard(main, config.baseUrl, config.apiSecret);
+    const thresholds = getThresholds();
+    this.loadDashboard(main, config.baseUrl, config.apiSecret, thresholds);
   }
 
   private createSettingsButton(): HTMLButtonElement {
@@ -74,24 +117,51 @@ export class DashboardPage {
   private async loadDashboard(
     main: HTMLElement,
     baseUrl: string,
-    apiSecret?: string
+    apiSecret?: string,
+    thresholds: { low: number; high: number } = { low: 70, high: 180 }
   ): Promise<void> {
     const apiClient = new NightscoutApiClient({ baseUrl, apiSecret });
+    await apiClient.detectUnits();
     const getCurrent = new GetCurrentGlucose(apiClient);
     const getHistory = new GetGlucoseHistory(apiClient);
-    const calculateTir = new CalculateTimeInRange();
+    const calculateTir = new CalculateTimeInRange(thresholds);
     const calculateVariability = new CalculateVariability();
     const calculateGMI = new CalculateGMI();
-    const countEvents = new CountCriticalEvents();
-    const analyzePatterns = new AnalyzeHourlyPatterns();
+    const countEvents = new CountCriticalEvents(thresholds);
+    const analyzePatterns = new AnalyzeHourlyPatterns(thresholds);
+    const analyzeAdvanced = new AnalyzeAdvancedMetrics(thresholds);
+    const calculateWeekly = new CalculateWeeklyComparison(thresholds);
+    const calculateDailyTrends = new CalculateDailyTrends(thresholds);
 
-    // Range selector
-    const rangeSelectorContainer = document.createElement('div');
-    const rangeSelector = new RangeSelector(rangeSelectorContainer, (hours) => {
-      this.selectedHours = hours;
+    // View mode selector container
+    const viewModeContainer = document.createElement('div');
+    const viewModeSelector = new ViewModeSelector(viewModeContainer, (mode) => {
+      this.viewMode = mode;
+      saveViewMode(mode);
       void load();
-    });
-    rangeSelector.setActiveHours(this.selectedHours);
+    }, this.viewMode);
+
+    // Range selector container
+    const rangeSelectorContainer = document.createElement('div');
+    let rangeSelector: RangeSelector | null = null;
+
+    const createRangeSelector = (): RangeSelector => {
+      const options = this.viewMode === 'live' ? LIVE_OPTIONS : ANALYSIS_OPTIONS;
+      return new RangeSelector(
+        rangeSelectorContainer,
+        options,
+        (hours) => {
+          this.selectedHours = hours;
+          if (this.viewMode === 'live') {
+            saveLiveRange(hours);
+          } else {
+            saveAnalysisRange(hours);
+          }
+          void load();
+        },
+        this.selectedHours
+      );
+    };
 
     const load = async (): Promise<void> => {
       this.showLoading(main);
@@ -103,63 +173,35 @@ export class DashboardPage {
         ]);
 
         main.innerHTML = '';
-        main.appendChild(rangeSelectorContainer);
+
+        // Controls row
+        const controlsRow = document.createElement('div');
+        controlsRow.className = 'controls-row';
+        main.appendChild(controlsRow);
+
+        viewModeContainer.innerHTML = '';
+        controlsRow.appendChild(viewModeContainer);
+        viewModeSelector.setActiveMode(this.viewMode);
+
+        rangeSelectorContainer.innerHTML = '';
+        controlsRow.appendChild(rangeSelectorContainer);
+        rangeSelector = createRangeSelector();
         rangeSelector.setActiveHours(this.selectedHours);
 
-        const currentContainer = document.createElement('div');
-        main.appendChild(currentContainer);
-
-        if (current) {
-          const previous = history.length > 1 ? history[1] : undefined;
-          const currentGlucose = new CurrentGlucose(currentContainer);
-          currentGlucose.render(current, previous);
+        if (this.viewMode === 'live') {
+          this.renderLiveView(main, current, history, {
+            calculateTir,
+            calculateVariability,
+            calculateGMI,
+            countEvents,
+          });
         } else {
-          const noData = document.createElement('div');
-          noData.className = 'card message';
-          noData.textContent = 'No current glucose data available.';
-          currentContainer.appendChild(noData);
-        }
-
-        const chartContainer = document.createElement('div');
-        main.appendChild(chartContainer);
-        const chart = new GlucoseChart(chartContainer, this.selectedHours);
-        chart.render(history);
-
-        const statsContainer = document.createElement('div');
-        main.appendChild(statsContainer);
-
-        if (history.length > 0) {
-          const tir = await calculateTir.execute(history);
-          const average =
-            history.reduce((sum, r) => sum + r.value, 0) / history.length;
-          const stats = new StatsPanel(statsContainer);
-          stats.render(tir, average);
-
-          // Advanced metrics
-          const variability = calculateVariability.execute(history);
-          const gmi = calculateGMI.execute(history);
-          const events = countEvents.execute(history);
-          const patterns = analyzePatterns.execute(history);
-
-          const variabilityContainer = document.createElement('div');
-          main.appendChild(variabilityContainer);
-          const variabilityPanel = new VariabilityPanel(variabilityContainer);
-          variabilityPanel.render(variability, gmi);
-
-          const eventsContainer = document.createElement('div');
-          main.appendChild(eventsContainer);
-          const eventsPanel = new EventsPanel(eventsContainer);
-          eventsPanel.render(events);
-
-          const patternsContainer = document.createElement('div');
-          main.appendChild(patternsContainer);
-          const patternsPanel = new PatternsPanel(patternsContainer);
-          patternsPanel.render(patterns);
-        } else {
-          const noStats = document.createElement('div');
-          noStats.className = 'card message';
-          noStats.textContent = 'Not enough data for statistics.';
-          statsContainer.appendChild(noStats);
+          this.renderAnalysisView(main, history, {
+            analyzeAdvanced,
+            calculateWeekly,
+            calculateDailyTrends,
+            analyzePatterns,
+          });
         }
       } catch (err) {
         this.showError(
@@ -174,6 +216,124 @@ export class DashboardPage {
     this.intervalId = window.setInterval(() => {
       void load();
     }, REFRESH_INTERVAL_MS);
+  }
+
+  private renderLiveView(
+    main: HTMLElement,
+    current: import('../../domain/models/GlucoseReading').GlucoseReading | null,
+    history: import('../../domain/models/GlucoseReading').GlucoseReading[],
+    services: {
+      calculateTir: CalculateTimeInRange;
+      calculateVariability: CalculateVariability;
+      calculateGMI: CalculateGMI;
+      countEvents: CountCriticalEvents;
+    }
+  ): void {
+    const currentContainer = document.createElement('div');
+    main.appendChild(currentContainer);
+
+    if (current) {
+      const previous = history.length > 1 ? history[1] : undefined;
+      const currentGlucose = new CurrentGlucose(currentContainer);
+      currentGlucose.render(current, previous);
+    } else {
+      const noData = document.createElement('div');
+      noData.className = 'card message';
+      noData.textContent = 'No current glucose data available.';
+      currentContainer.appendChild(noData);
+    }
+
+    const chartContainer = document.createElement('div');
+    main.appendChild(chartContainer);
+    const chart = new GlucoseChart(chartContainer, this.selectedHours);
+    chart.render(history);
+
+    const statsContainer = document.createElement('div');
+    main.appendChild(statsContainer);
+
+    if (history.length > 0) {
+      services.calculateTir.execute(history).then((tir) => {
+        const average =
+          history.reduce((sum, r) => sum + r.value, 0) / history.length;
+        const stats = new StatsPanel(statsContainer);
+        stats.render(tir, average);
+      });
+
+      const variability = services.calculateVariability.execute(history);
+      const gmi = services.calculateGMI.execute(history);
+      const events = services.countEvents.execute(history);
+
+      const variabilityContainer = document.createElement('div');
+      main.appendChild(variabilityContainer);
+      const variabilityPanel = new VariabilityPanel(variabilityContainer);
+      variabilityPanel.render(variability, gmi);
+
+      const eventsContainer = document.createElement('div');
+      main.appendChild(eventsContainer);
+      const eventsPanel = new EventsPanel(eventsContainer);
+      eventsPanel.render(events);
+    } else {
+      const noStats = document.createElement('div');
+      noStats.className = 'card message';
+      noStats.textContent = 'Not enough data for statistics.';
+      statsContainer.appendChild(noStats);
+    }
+  }
+
+  private renderAnalysisView(
+    main: HTMLElement,
+    history: import('../../domain/models/GlucoseReading').GlucoseReading[],
+    services: {
+      analyzeAdvanced: AnalyzeAdvancedMetrics;
+      calculateWeekly: CalculateWeeklyComparison;
+      calculateDailyTrends: CalculateDailyTrends;
+      analyzePatterns: AnalyzeHourlyPatterns;
+    }
+  ): void {
+    if (history.length === 0) {
+      const noData = document.createElement('div');
+      noData.className = 'card message';
+      noData.textContent = 'Not enough historical data for this range.';
+      main.appendChild(noData);
+      return;
+    }
+
+    const advancedMetrics = services.analyzeAdvanced.execute(history);
+    const weeklyMetrics = services.calculateWeekly.execute(history);
+    const dailyTrends = services.calculateDailyTrends.execute(history);
+
+    const dataQuality = new CalculateDataQuality().execute(history, this.selectedHours);
+    const qualityContainer = document.createElement('div');
+    main.appendChild(qualityContainer);
+    const qualityIndicator = new DataQualityIndicator(qualityContainer);
+    qualityIndicator.render(dataQuality);
+
+    if (advancedMetrics) {
+      const advancedContainer = document.createElement('div');
+      main.appendChild(advancedContainer);
+      const advancedPanel = new AdvancedMetricsPanel(advancedContainer);
+      advancedPanel.render(advancedMetrics);
+    }
+
+    if (dailyTrends.length > 1) {
+      const sparklineContainer = document.createElement('div');
+      main.appendChild(sparklineContainer);
+      const sparkline = new TrendSparkline(sparklineContainer);
+      sparkline.render(dailyTrends);
+    }
+
+    if (weeklyMetrics.length > 0) {
+      const weeklyContainer = document.createElement('div');
+      main.appendChild(weeklyContainer);
+      const weeklyPanel = new WeeklyComparisonPanel(weeklyContainer);
+      weeklyPanel.render(weeklyMetrics);
+    }
+
+    const patterns = services.analyzePatterns.execute(history);
+    const patternsContainer = document.createElement('div');
+    main.appendChild(patternsContainer);
+    const patternsPanel = new PatternsPanel(patternsContainer);
+    patternsPanel.render(patterns);
   }
 
   private showLoading(main: HTMLElement): void {

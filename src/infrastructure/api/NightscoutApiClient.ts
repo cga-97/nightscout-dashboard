@@ -17,14 +17,60 @@ interface NightscoutTreatment {
   carbs?: number;
 }
 
+interface NightscoutStatus {
+  settings?: {
+    units?: string;
+  };
+}
+
 export class NightscoutApiClient extends NightscoutRepository {
   private readonly baseUrl: string;
   private readonly apiSecret: string | undefined;
+  private units: 'mg/dL' | 'mmol/L' = 'mg/dL';
 
   constructor(config: { baseUrl: string; apiSecret?: string }) {
     super();
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.apiSecret = config.apiSecret;
+  }
+
+  async detectUnits(): Promise<void> {
+    try {
+      const status = await this.request<NightscoutStatus>('/api/v1/status.json');
+      const raw = status.settings?.units?.toLowerCase() ?? '';
+      if (raw === 'mmol' || raw === 'mmol/l') {
+        this.units = 'mmol/L';
+        return;
+      }
+    } catch {
+      // Fallback: try to infer from the latest entry
+    }
+
+    try {
+      const entry = await this.getLatestEntryRaw();
+      if (entry && entry.value > 0 && entry.value < 30) {
+        this.units = 'mmol/L';
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    this.units = 'mg/dL';
+  }
+
+  private async getLatestEntryRaw(): Promise<{ value: number } | null> {
+    const entries = await this.request<NightscoutEntry[]>(
+      '/api/v1/entries.json?count=1'
+    );
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return null;
+    }
+    const value =
+      typeof entries[0].sgv === 'string'
+        ? parseFloat(entries[0].sgv)
+        : entries[0].sgv;
+    return { value: Number.isFinite(value) ? value : NaN };
   }
 
   private getHeaders(): Record<string, string> {
@@ -81,9 +127,11 @@ export class NightscoutApiClient extends NightscoutRepository {
   }
 
   async getHistory(hours: number): Promise<GlucoseReading[]> {
-    const count = Math.max(1, Math.round(hours * 12));
+    const cutoffEpoch = Date.now() - hours * 60 * 60 * 1000;
+    // count=10000 ensures we get enough data for long ranges while
+    // the date filter prevents fetching the entire database
     const entries = await this.request<NightscoutEntry[]>(
-      `/api/v1/entries.json?count=${count}`
+      `/api/v1/entries.json?find[date][$gte]=${cutoffEpoch}&count=10000`
     );
 
     if (!Array.isArray(entries)) {
@@ -107,14 +155,17 @@ export class NightscoutApiClient extends NightscoutRepository {
   }
 
   private mapEntryToGlucoseReading(entry: NightscoutEntry): GlucoseReading {
-    const value =
+    const rawValue =
       typeof entry.sgv === 'string' ? parseFloat(entry.sgv) : entry.sgv;
+    const value = Number.isFinite(rawValue) ? rawValue : NaN;
+    const converted = this.units === 'mmol/L' ? value * 18 : value;
 
     return {
       timestamp: new Date(entry.date),
-      value: Number.isFinite(value) ? value : NaN,
+      value: converted,
       direction: entry.direction,
       device: entry.device,
+      units: this.units,
     };
   }
 
