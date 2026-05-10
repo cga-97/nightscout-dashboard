@@ -48,8 +48,8 @@ export class NightscoutApiClient extends NightscoutRepository {
         this.units = 'mmol/L';
         return;
       }
-    } catch {
-      // Fallback: try to infer from the latest entry
+    } catch (err) {
+      console.warn('Could not detect units from status endpoint:', err instanceof Error ? err.message : String(err));
     }
 
     try {
@@ -58,8 +58,8 @@ export class NightscoutApiClient extends NightscoutRepository {
         this.units = 'mmol/L';
         return;
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Could not infer units from latest entry:', err instanceof Error ? err.message : String(err));
     }
 
     this.units = 'mg/dL';
@@ -89,15 +89,35 @@ export class NightscoutApiClient extends NightscoutRepository {
     return headers;
   }
 
+  private async fetchWithRetry(url: string, retries = 3): Promise<Response> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        });
+        return response;
+      } catch (error) {
+        const isLastAttempt = attempt === retries;
+        if (isLastAttempt) {
+          throw error;
+        }
+        const delay = Math.pow(2, attempt) * 1000;
+        console.warn(
+          `Nightscout fetch attempt ${attempt + 1} failed, retrying in ${delay}ms: ${error instanceof Error ? error.message : String(error)}`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+    throw new Error('Unreachable');
+  }
+
   private async request<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     let response: Response;
 
     try {
-      response = await fetch(url, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
+      response = await this.fetchWithRetry(url);
     } catch (networkError) {
       throw new Error(
         `Network error fetching Nightscout data: ${networkError instanceof Error ? networkError.message : String(networkError)}`

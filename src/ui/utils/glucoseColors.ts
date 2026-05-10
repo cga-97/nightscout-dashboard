@@ -1,3 +1,5 @@
+import { DEFAULT_LOW_THRESHOLD, DEFAULT_HIGH_THRESHOLD } from '../../domain/constants';
+
 /**
  * Centralized glucose color classification.
  *
@@ -16,7 +18,7 @@ export interface GlucoseThresholds {
   high: number;
 }
 
-export const DEFAULT_THRESHOLDS: GlucoseThresholds = { low: 70, high: 180 };
+export const DEFAULT_THRESHOLDS: GlucoseThresholds = { low: DEFAULT_LOW_THRESHOLD, high: DEFAULT_HIGH_THRESHOLD };
 
 export function getColorClass(
   value: number,

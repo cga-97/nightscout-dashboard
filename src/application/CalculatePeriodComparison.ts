@@ -1,13 +1,14 @@
 import { GlucoseReading } from '../domain/models/GlucoseReading';
 import { PeriodComparison, PeriodMetrics } from '../domain/models/PeriodComparison';
+import { DEFAULT_LOW_THRESHOLD, DEFAULT_HIGH_THRESHOLD, GMI_BASE, GMI_FACTOR } from '../domain/constants';
 
 export class CalculatePeriodComparison {
   private readonly low: number;
   private readonly high: number;
 
   constructor(options: { low?: number; high?: number } = {}) {
-    this.low = options.low ?? 70;
-    this.high = options.high ?? 180;
+    this.low = options.low ?? DEFAULT_LOW_THRESHOLD;
+    this.high = options.high ?? DEFAULT_HIGH_THRESHOLD;
   }
 
   execute(readings: GlucoseReading[]): PeriodComparison | null {
@@ -47,7 +48,7 @@ export class CalculatePeriodComparison {
     const squaredDiffSum = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0);
     const sd = Math.sqrt(squaredDiffSum / total);
     const cv = (sd / mean) * 100;
-    const gmi = 3.31 + 0.02392 * avg;
+    const gmi = GMI_BASE + GMI_FACTOR * avg;
 
     return {
       label,

@@ -1,15 +1,16 @@
 import { GlucoseReading } from '../domain/models/GlucoseReading';
 import { CriticalEvents } from '../domain/models/CriticalEvents';
+import { DEFAULT_LOW_THRESHOLD, DEFAULT_HIGH_THRESHOLD, SEVERE_LOW_THRESHOLD, SEVERE_HIGH_THRESHOLD } from '../domain/constants';
 
 export class CountCriticalEvents {
   private readonly low: number;
   private readonly high: number;
-  private readonly severeLow = 54;
-  private readonly severeHigh = 250;
+  private readonly severeLow = SEVERE_LOW_THRESHOLD;
+  private readonly severeHigh = SEVERE_HIGH_THRESHOLD;
 
   constructor(options: { low?: number; high?: number } = {}) {
-    this.low = options.low ?? 70;
-    this.high = options.high ?? 180;
+    this.low = options.low ?? DEFAULT_LOW_THRESHOLD;
+    this.high = options.high ?? DEFAULT_HIGH_THRESHOLD;
   }
 
   execute(readings: GlucoseReading[]): CriticalEvents {

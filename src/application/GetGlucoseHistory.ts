@@ -1,5 +1,6 @@
 import { GlucoseReading } from '../domain/models/GlucoseReading';
 import { NightscoutRepository } from '../domain/repositories/NightscoutRepository';
+import { MAX_HISTORY_HOURS } from '../domain/constants';
 
 export class GetGlucoseHistory {
   constructor(private readonly repository: NightscoutRepository) {}
@@ -8,8 +9,8 @@ export class GetGlucoseHistory {
     if (!Number.isFinite(hours) || hours <= 0) {
       throw new Error(`Invalid hours parameter: ${hours}. Must be a positive number.`);
     }
-    if (hours > 2160) {
-      throw new Error(`Hours parameter too large: ${hours}. Maximum is 2160 (90 days).`);
+    if (hours > MAX_HISTORY_HOURS) {
+      throw new Error(`Hours parameter too large: ${hours}. Maximum is ${MAX_HISTORY_HOURS} (90 days).`);
     }
     return this.repository.getHistory(hours);
   }

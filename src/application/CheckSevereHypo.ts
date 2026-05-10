@@ -1,4 +1,5 @@
 import { GlucoseReading } from '../domain/models/GlucoseReading';
+import { SEVERE_LOW_THRESHOLD } from '../domain/constants';
 
 export interface HypoAlert {
   triggered: boolean;
@@ -15,7 +16,7 @@ export class CheckSevereHypo {
   }
 
   execute(reading: GlucoseReading | null): HypoAlert {
-    if (!reading || reading.value >= 54) {
+    if (!reading || reading.value >= SEVERE_LOW_THRESHOLD) {
       return { triggered: false };
     }
 

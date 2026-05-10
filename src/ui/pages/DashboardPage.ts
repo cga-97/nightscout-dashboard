@@ -38,8 +38,7 @@ import { NotificationService } from '../../application/NotificationService';
 import { SettingsModal } from '../components/SettingsModal';
 import { DashboardCache, type CachedData } from '../services/DashboardCache';
 import { DashboardSkeletonRenderer } from '../services/DashboardSkeletonRenderer';
-
-const REFRESH_INTERVAL_MS = 300000;
+import { REFRESH_INTERVAL_MS, DEFAULT_LOW_THRESHOLD, DEFAULT_HIGH_THRESHOLD } from '../../domain/constants';
 
 const LIVE_OPTIONS = [
   { label: '6h', hours: 6 },
@@ -197,7 +196,7 @@ export class DashboardPage {
     main: HTMLElement,
     _baseUrl: string,
     _apiSecret: string | undefined,
-    thresholds: { low: number; high: number } = { low: 70, high: 180 }
+    thresholds: { low: number; high: number } = { low: DEFAULT_LOW_THRESHOLD, high: DEFAULT_HIGH_THRESHOLD }
   ): void {
     // Clear previous state
     main.innerHTML = '';
@@ -343,6 +342,8 @@ export class DashboardPage {
           timestamp: Date.now(),
         });
 
+        this.removeCacheIndicator();
+
         // Update selectors
         this.viewModeSelector?.setActiveMode(this.viewMode);
         this.rangeSelector?.setActiveHours(this.selectedHours);
@@ -385,7 +386,11 @@ export class DashboardPage {
     void load();
 
     this.intervalId = window.setInterval(() => {
-      void load();
+      load().catch((err) => {
+        console.error('Background refresh failed:', err instanceof Error ? err.message : String(err));
+        // Don't show error to user on background refresh — just log it.
+        // The stale cache data is still displayed.
+      });
     }, REFRESH_INTERVAL_MS);
   }
 
@@ -407,6 +412,9 @@ export class DashboardPage {
     }
   ): void {
     content.innerHTML = '';
+
+    this.showCacheIndicator(content);
+
     if (this.viewMode === 'live') {
       this.renderLiveView(content, cached.current, cached.history, cached.treatments, {
         calculateTir: services.calculateTir,
@@ -574,7 +582,31 @@ export class DashboardPage {
     patternsPanel.render(patterns);
   }
 
+  private showCacheIndicator(container: HTMLElement): void {
+    const indicator = document.createElement('div');
+    indicator.className = 'cache-indicator';
+    indicator.id = 'cache-indicator';
+
+    const dot = document.createElement('span');
+    dot.className = 'cache-indicator-dot';
+    indicator.appendChild(dot);
+
+    const text = document.createElement('span');
+    text.textContent = 'Cached';
+    indicator.appendChild(text);
+
+    container.appendChild(indicator);
+  }
+
+  private removeCacheIndicator(): void {
+    const indicator = document.getElementById('cache-indicator');
+    if (indicator) {
+      indicator.remove();
+    }
+  }
+
   private showError(container: HTMLElement, message: string): void {
+    this.removeCacheIndicator();
     container.innerHTML = '';
     const wrapper = document.createElement('div');
     wrapper.className = 'card animate-fade-in-up';

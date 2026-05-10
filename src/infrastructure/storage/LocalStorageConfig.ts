@@ -1,3 +1,5 @@
+import { DEFAULT_LOW_THRESHOLD, DEFAULT_HIGH_THRESHOLD } from '../../domain/constants';
+
 const BASE_URL_KEY = 'nsd_baseUrl';
 // sessionStorage clears when the tab closes, preventing long-term secret exposure while keeping the session convenient
 const API_SECRET_KEY = 'nsd_apiSecret';
@@ -25,7 +27,7 @@ export function getThresholds(): ThresholdConfig {
       // ignore
     }
   }
-  return { low: 70, high: 180 };
+  return { low: DEFAULT_LOW_THRESHOLD, high: DEFAULT_HIGH_THRESHOLD };
 }
 
 export function getConfig(): StorageConfig {

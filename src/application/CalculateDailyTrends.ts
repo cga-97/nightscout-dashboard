@@ -1,13 +1,14 @@
 import { GlucoseReading } from '../domain/models/GlucoseReading';
 import { DailyTrend } from '../domain/models/DailyTrend';
+import { DEFAULT_LOW_THRESHOLD, DEFAULT_HIGH_THRESHOLD } from '../domain/constants';
 
 export class CalculateDailyTrends {
   private readonly low: number;
   private readonly high: number;
 
   constructor(options: { low?: number; high?: number } = {}) {
-    this.low = options.low ?? 70;
-    this.high = options.high ?? 180;
+    this.low = options.low ?? DEFAULT_LOW_THRESHOLD;
+    this.high = options.high ?? DEFAULT_HIGH_THRESHOLD;
   }
 
   execute(readings: GlucoseReading[]): DailyTrend[] {

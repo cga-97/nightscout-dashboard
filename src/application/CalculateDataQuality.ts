@@ -1,4 +1,5 @@
 import { GlucoseReading } from '../domain/models/GlucoseReading';
+import { CGM_READINGS_PER_HOUR } from '../domain/constants';
 
 export interface DataQuality {
   expectedReadings: number;
@@ -8,8 +9,7 @@ export interface DataQuality {
 
 export class CalculateDataQuality {
   execute(readings: GlucoseReading[], hours: number): DataQuality {
-    // CGM typically reads every 5 minutes = 12 readings per hour
-    const expectedReadings = Math.round(hours * 12);
+    const expectedReadings = Math.round(hours * CGM_READINGS_PER_HOUR);
     const actualReadings = readings.length;
     const coveragePercentage =
       expectedReadings > 0

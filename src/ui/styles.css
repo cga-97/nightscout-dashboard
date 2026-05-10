@@ -519,6 +519,39 @@ body {
   color: #fff;
 }
 
+/* Dashboard Content */
+.dashboard-content {
+  position: relative;
+}
+
+/* Cache indicator */
+.cache-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  opacity: 0.7;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  z-index: 5;
+}
+
+.cache-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-border);
+  animation: pulse-cache 2s infinite;
+}
+
+@keyframes pulse-cache {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
 /* Desktop */
 @media (min-width: 640px) {
   .main {
