@@ -10,7 +10,7 @@ export class CalculateTimeInRange {
     this.high = options.high ?? 180;
   }
 
-  async execute(readings: GlucoseReading[]): Promise<TimeInRange> {
+  execute(readings: GlucoseReading[]): TimeInRange {
     if (readings.length === 0) {
       return { percentage: 0, low: this.low, high: this.high };
     }

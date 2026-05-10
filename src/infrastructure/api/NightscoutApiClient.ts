@@ -34,6 +34,12 @@ export class NightscoutApiClient extends NightscoutRepository {
     this.apiSecret = config.apiSecret;
   }
 
+  /**
+   * Detect the units (mg/dL or mmol/L) used by the Nightscout instance.
+   *
+   * Prefer using {@link createNightscoutApiClient} which calls this automatically.
+   * Call this manually only if you need to re-detect units after construction.
+   */
   async detectUnits(): Promise<void> {
     try {
       const status = await this.request<NightscoutStatus>('/api/v1/status.json');
@@ -178,4 +184,17 @@ export class NightscoutApiClient extends NightscoutRepository {
       carbs: t.carbs,
     };
   }
+}
+
+/**
+ * Factory that creates a fully-initialized NightscoutApiClient.
+ * Guarantees unit detection is complete before the client is returned.
+ */
+export async function createNightscoutApiClient(config: {
+  baseUrl: string;
+  apiSecret?: string;
+}): Promise<NightscoutApiClient> {
+  const client = new NightscoutApiClient(config);
+  await client.detectUnits();
+  return client;
 }

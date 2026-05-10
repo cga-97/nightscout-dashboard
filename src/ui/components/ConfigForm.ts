@@ -37,9 +37,14 @@ export class ConfigForm {
     baseUrlInput.id = 'ns-base-url';
     baseUrlInput.name = 'baseUrl';
     baseUrlInput.className = 'form-input';
-    baseUrlInput.placeholder = 'https://your-nightscout.herokuapp.com';
+    baseUrlInput.placeholder = 'https://my-site.herokuapp.com';
     baseUrlInput.required = true;
     baseUrlGroup.appendChild(baseUrlInput);
+
+    const baseUrlHint = document.createElement('div');
+    baseUrlHint.className = 'form-hint';
+    baseUrlHint.textContent = 'Your Nightscout site URL, e.g. https://my-site.herokuapp.com';
+    baseUrlGroup.appendChild(baseUrlHint);
 
     form.appendChild(baseUrlGroup);
 
@@ -58,6 +63,12 @@ export class ConfigForm {
     secretInput.className = 'form-input';
     secretInput.placeholder = 'Your API secret';
     secretGroup.appendChild(secretInput);
+
+    const secretHint = document.createElement('div');
+    secretHint.className = 'form-hint';
+    secretHint.style.color = 'var(--color-border)';
+    secretHint.textContent = 'Your API secret is stored only for this browser session and will be cleared when you close the tab.';
+    secretGroup.appendChild(secretHint);
 
     form.appendChild(secretGroup);
 

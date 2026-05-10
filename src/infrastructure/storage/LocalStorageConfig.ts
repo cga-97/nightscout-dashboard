@@ -1,4 +1,5 @@
 const BASE_URL_KEY = 'nsd_baseUrl';
+// sessionStorage clears when the tab closes, preventing long-term secret exposure while keeping the session convenient
 const API_SECRET_KEY = 'nsd_apiSecret';
 
 export interface StorageConfig {
@@ -29,7 +30,7 @@ export function getThresholds(): ThresholdConfig {
 
 export function getConfig(): StorageConfig {
   const baseUrl = localStorage.getItem(BASE_URL_KEY) ?? undefined;
-  const apiSecret = localStorage.getItem(API_SECRET_KEY) ?? undefined;
+  const apiSecret = sessionStorage.getItem(API_SECRET_KEY) ?? undefined;
   return { baseUrl, apiSecret };
 }
 
@@ -41,9 +42,9 @@ export function setConfig(config: StorageConfig): void {
   }
 
   if (config.apiSecret !== undefined) {
-    localStorage.setItem(API_SECRET_KEY, config.apiSecret);
+    sessionStorage.setItem(API_SECRET_KEY, config.apiSecret);
   } else {
-    localStorage.removeItem(API_SECRET_KEY);
+    sessionStorage.removeItem(API_SECRET_KEY);
   }
 }
 
@@ -82,5 +83,9 @@ export function getAnalysisRange(): number {
 
 export function clearConfig(): void {
   localStorage.removeItem(BASE_URL_KEY);
-  localStorage.removeItem(API_SECRET_KEY);
+  sessionStorage.removeItem(API_SECRET_KEY);
+}
+
+export function hasPersistedSecret(): boolean {
+  return sessionStorage.getItem(API_SECRET_KEY) !== null;
 }

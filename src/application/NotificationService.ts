@@ -1,13 +1,5 @@
 export class NotificationService {
-  private static instance: NotificationService;
   private permission: NotificationPermission = 'default';
-
-  static getInstance(): NotificationService {
-    if (!NotificationService.instance) {
-      NotificationService.instance = new NotificationService();
-    }
-    return NotificationService.instance;
-  }
 
   async requestPermission(): Promise<boolean> {
     if (!('Notification' in window)) {

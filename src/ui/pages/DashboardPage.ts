@@ -1,8 +1,9 @@
-import { NightscoutApiClient } from '../../infrastructure/api/NightscoutApiClient';
-import { getConfig, clearConfig, getThresholds, getViewMode, getLiveRange, getAnalysisRange, saveViewMode, saveLiveRange, saveAnalysisRange } from '../../infrastructure/storage/LocalStorageConfig';
+import { createNightscoutApiClient } from '../../infrastructure/api/NightscoutApiClient';
+import { getConfig, getThresholds, getViewMode, getLiveRange, getAnalysisRange, saveViewMode, saveLiveRange, saveAnalysisRange } from '../../infrastructure/storage/LocalStorageConfig';
 import { GetCurrentGlucose } from '../../application/GetCurrentGlucose';
 import { GetGlucoseHistory } from '../../application/GetGlucoseHistory';
 import { Treatment } from '../../domain/models/Treatment';
+import { GlucoseReading } from '../../domain/models/GlucoseReading';
 import { CalculateTimeInRange } from '../../application/CalculateTimeInRange';
 import { CalculateVariability } from '../../application/CalculateVariability';
 import { CalculateGMI } from '../../application/CalculateGMI';
@@ -34,6 +35,9 @@ import { PeriodComparisonPanel } from '../components/PeriodComparisonPanel';
 import { TreatmentsPanel } from '../components/TreatmentsPanel';
 import { CheckSevereHypo } from '../../application/CheckSevereHypo';
 import { NotificationService } from '../../application/NotificationService';
+import { SettingsModal } from '../components/SettingsModal';
+import { DashboardCache, type CachedData } from '../services/DashboardCache';
+import { DashboardSkeletonRenderer } from '../services/DashboardSkeletonRenderer';
 
 const REFRESH_INTERVAL_MS = 300000;
 
@@ -57,6 +61,24 @@ export class DashboardPage {
   private viewMode: ViewMode = getViewMode();
   private selectedHoursLive = getLiveRange();
   private selectedHoursAnalysis = getAnalysisRange();
+  private currentBaseUrl?: string;
+  private currentApiSecret?: string;
+
+  // Persistent DOM elements
+  private controlsRow: HTMLElement | null = null;
+  private contentContainer: HTMLElement | null = null;
+  private viewModeContainer: HTMLElement | null = null;
+  private rangeSelectorContainer: HTMLElement | null = null;
+
+  // Persistent component instances
+  private viewModeSelector: ViewModeSelector | null = null;
+  private rangeSelector: RangeSelector | null = null;
+
+  // Data cache
+  private cache = new DashboardCache();
+  private lastScrollTop = 0;
+  private loadAbortController: AbortController | null = null;
+  private notificationService = new NotificationService();
 
   constructor(app: HTMLElement) {
     this.app = app;
@@ -74,8 +96,13 @@ export class DashboardPage {
     }
   }
 
+  private get cacheKey(): string {
+    return `${this.viewMode}-${this.selectedHours}`;
+  }
+
   mount(): void {
     this.app.innerHTML = '';
+    this.cache.clear();
 
     const header = document.createElement('header');
     header.className = 'header';
@@ -110,19 +137,20 @@ export class DashboardPage {
     }
 
     const thresholds = getThresholds();
-    this.loadDashboard(main, config.baseUrl, config.apiSecret, thresholds);
+    this.currentBaseUrl = config.baseUrl;
+    this.currentApiSecret = config.apiSecret;
+    this.initDashboard(main, config.baseUrl, config.apiSecret, thresholds);
   }
 
   private createNotificationButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn btn-sm';
-    btn.textContent = '🔔';
+    btn.className = 'btn btn-sm btn-ghost';
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`;
     btn.title = 'Enable notifications';
     btn.addEventListener('click', async () => {
-      const granted = await NotificationService.getInstance().requestPermission();
+      const granted = await this.notificationService.requestPermission();
       if (granted) {
-        btn.textContent = '🔔';
         btn.title = 'Notifications enabled';
         btn.style.opacity = '1';
       } else {
@@ -136,54 +164,69 @@ export class DashboardPage {
   private createSettingsButton(): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn btn-sm';
-    btn.textContent = '⚙️ Settings';
+    btn.className = 'btn btn-sm btn-ghost';
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+    btn.title = 'Settings';
+    btn.setAttribute('aria-label', 'Settings');
     btn.addEventListener('click', () => {
-      clearConfig();
-      window.location.reload();
+      const config = getConfig();
+      const thresholds = getThresholds();
+      const modal = new SettingsModal(config, thresholds, (result) => {
+        if (result.reset) {
+          window.location.reload();
+          return;
+        }
+        if (result.saved) {
+          const newConfig = getConfig();
+          if (newConfig.baseUrl !== this.currentBaseUrl || newConfig.apiSecret !== this.currentApiSecret) {
+            window.location.reload();
+          } else {
+            const main = document.getElementById('dashboard-main');
+            if (main && newConfig.baseUrl) {
+              this.initDashboard(main, newConfig.baseUrl, newConfig.apiSecret, getThresholds());
+            }
+          }
+        }
+      });
+      modal.open();
     });
     return btn;
   }
 
-  private async loadDashboard(
+  private initDashboard(
     main: HTMLElement,
-    baseUrl: string,
-    apiSecret?: string,
+    _baseUrl: string,
+    _apiSecret: string | undefined,
     thresholds: { low: number; high: number } = { low: 70, high: 180 }
-  ): Promise<void> {
-    const apiClient = new NightscoutApiClient({ baseUrl, apiSecret });
-    await apiClient.detectUnits();
-    const getCurrent = new GetCurrentGlucose(apiClient);
-    const getHistory = new GetGlucoseHistory(apiClient);
-    const calculateTir = new CalculateTimeInRange(thresholds);
-    const calculateVariability = new CalculateVariability();
-    const calculateGMI = new CalculateGMI();
-    const countEvents = new CountCriticalEvents(thresholds);
-    const analyzePatterns = new AnalyzeHourlyPatterns(thresholds);
-    const analyzeAdvanced = new AnalyzeAdvancedMetrics(thresholds);
-    const calculateWeekly = new CalculateWeeklyComparison(thresholds);
-    const calculateDailyTrends = new CalculateDailyTrends(thresholds);
-    const calculateHeatmap = new CalculateHourlyHeatmap(thresholds);
-    const calculateHistogram = new CalculateDistributionHistogram(thresholds);
-    const calculatePeriodComparison = new CalculatePeriodComparison(thresholds);
-    const checkHypo = new CheckSevereHypo();
+  ): void {
+    // Clear previous state
+    main.innerHTML = '';
+    this.controlsRow = null;
+    this.contentContainer = null;
+    this.viewModeContainer = null;
+    this.rangeSelectorContainer = null;
+    this.viewModeSelector = null;
+    this.rangeSelector = null;
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
 
-    // View mode selector container
-    const viewModeContainer = document.createElement('div');
-    const viewModeSelector = new ViewModeSelector(viewModeContainer, (mode) => {
-      this.viewMode = mode;
-      saveViewMode(mode);
-      void load();
-    }, this.viewMode);
+    // Create persistent controls
+    this.controlsRow = document.createElement('div');
+    this.controlsRow.className = 'controls-row animate-fade-in-up';
+    main.appendChild(this.controlsRow);
 
-    // Range selector container
-    const rangeSelectorContainer = document.createElement('div');
-    let rangeSelector: RangeSelector | null = null;
+    this.viewModeContainer = document.createElement('div');
+    this.controlsRow.appendChild(this.viewModeContainer);
+
+    this.rangeSelectorContainer = document.createElement('div');
+    this.controlsRow.appendChild(this.rangeSelectorContainer);
 
     const createRangeSelector = (): RangeSelector => {
       const options = this.viewMode === 'live' ? LIVE_OPTIONS : ANALYSIS_OPTIONS;
       return new RangeSelector(
-        rangeSelectorContainer,
+        this.rangeSelectorContainer!,
         options,
         (hours) => {
           this.selectedHours = hours;
@@ -198,48 +241,123 @@ export class DashboardPage {
       );
     };
 
+    this.viewModeSelector = new ViewModeSelector(this.viewModeContainer, (mode) => {
+      this.viewMode = mode;
+      saveViewMode(mode);
+      // Recreate range selector with new options for the mode
+      this.rangeSelector = createRangeSelector();
+      this.rangeSelector.render();
+      void load();
+    }, this.viewMode);
+    this.viewModeSelector.render();
+
+    this.rangeSelector = createRangeSelector();
+    this.rangeSelector.render();
+
+    // Create content container
+    this.contentContainer = document.createElement('div');
+    this.contentContainer.className = 'dashboard-content';
+    main.appendChild(this.contentContainer);
+
     const load = async (): Promise<void> => {
-      this.showLoading(main);
+      if (this.loadAbortController) {
+        this.loadAbortController.abort();
+      }
+      this.loadAbortController = new AbortController();
+      const signal = this.loadAbortController.signal;
+
+      const content = this.contentContainer;
+      if (!content) return;
+      if (signal.aborted) return;
+
+      // Save scroll position
+      this.lastScrollTop = content.scrollTop || 0;
 
       try {
+        if (!this.currentBaseUrl) return;
+
+        const apiClient = await createNightscoutApiClient({
+          baseUrl: this.currentBaseUrl,
+          apiSecret: this.currentApiSecret,
+        });
+        const getCurrent = new GetCurrentGlucose(apiClient);
+        const getHistory = new GetGlucoseHistory(apiClient);
+        const calculateTir = new CalculateTimeInRange(thresholds);
+        const calculateVariability = new CalculateVariability();
+        const calculateGMI = new CalculateGMI();
+        const countEvents = new CountCriticalEvents(thresholds);
+        const analyzePatterns = new AnalyzeHourlyPatterns(thresholds);
+        const analyzeAdvanced = new AnalyzeAdvancedMetrics(thresholds);
+        const calculateWeekly = new CalculateWeeklyComparison(thresholds);
+        const calculateDailyTrends = new CalculateDailyTrends(thresholds);
+        const calculateHeatmap = new CalculateHourlyHeatmap(thresholds);
+        const calculateHistogram = new CalculateDistributionHistogram(thresholds);
+        const calculatePeriodComparison = new CalculatePeriodComparison(thresholds);
+        const checkHypo = new CheckSevereHypo();
+
+        // Check cache for instant render
+        const cached = this.cache.get(this.cacheKey);
+        if (cached) {
+          // Render from cache immediately while fetching fresh data
+          this.renderFromCache(content, cached, {
+            calculateTir,
+            calculateVariability,
+            calculateGMI,
+            countEvents,
+            analyzeAdvanced,
+            calculateWeekly,
+            calculateDailyTrends,
+            analyzePatterns,
+            calculateHeatmap,
+            calculateHistogram,
+            calculatePeriodComparison,
+          });
+        } else {
+          DashboardSkeletonRenderer.showSkeletons(content, this.viewMode);
+        }
+
+        if (signal.aborted) return;
         const cutoff = new Date(Date.now() - this.selectedHours * 60 * 60 * 1000);
+
+        // Fetch current only in live mode, or if not cached
+        const shouldFetchCurrent = this.viewMode === 'live' || !cached;
         const [current, history, treatments] = await Promise.all([
-          getCurrent.execute(),
+          shouldFetchCurrent ? getCurrent.execute() : Promise.resolve(cached?.current ?? null),
           getHistory.execute(this.selectedHours),
           apiClient.getTreatments(cutoff),
         ]);
 
+        if (signal.aborted) return;
+
         // Check for severe hypo and notify
         const hypoAlert = checkHypo.execute(current);
         if (hypoAlert.triggered && hypoAlert.value !== undefined) {
-          NotificationService.getInstance().sendSevereHypoAlert(hypoAlert.value);
+          this.notificationService.sendSevereHypoAlert(hypoAlert.value);
         }
 
-        main.innerHTML = '';
+        // Update cache
+        this.cache.set(this.cacheKey, {
+          current,
+          history,
+          treatments,
+          timestamp: Date.now(),
+        });
 
-        // Controls row
-        const controlsRow = document.createElement('div');
-        controlsRow.className = 'controls-row';
-        main.appendChild(controlsRow);
+        // Update selectors
+        this.viewModeSelector?.setActiveMode(this.viewMode);
+        this.rangeSelector?.setActiveHours(this.selectedHours);
 
-        viewModeContainer.innerHTML = '';
-        controlsRow.appendChild(viewModeContainer);
-        viewModeSelector.setActiveMode(this.viewMode);
-
-        rangeSelectorContainer.innerHTML = '';
-        controlsRow.appendChild(rangeSelectorContainer);
-        rangeSelector = createRangeSelector();
-        rangeSelector.setActiveHours(this.selectedHours);
-
+        // Render
+        content.innerHTML = '';
         if (this.viewMode === 'live') {
-          this.renderLiveView(main, current, history, treatments, {
+          this.renderLiveView(content, current, history, treatments, {
             calculateTir,
             calculateVariability,
             calculateGMI,
             countEvents,
           });
         } else {
-          this.renderAnalysisView(main, history, {
+          this.renderAnalysisView(content, history, {
             analyzeAdvanced,
             calculateWeekly,
             calculateDailyTrends,
@@ -249,25 +367,72 @@ export class DashboardPage {
             calculatePeriodComparison,
           });
         }
+
+        DashboardSkeletonRenderer.applyStaggerAnimation(content);
+
+        // Restore scroll position
+        content.scrollTop = this.lastScrollTop;
       } catch (err) {
+        if (signal.aborted) return;
         this.showError(
-          main,
+          content,
           err instanceof Error ? err.message : 'Failed to load data.'
         );
       }
     };
 
-    await load();
+    // Initial load
+    void load();
 
     this.intervalId = window.setInterval(() => {
       void load();
     }, REFRESH_INTERVAL_MS);
   }
 
+  private renderFromCache(
+    content: HTMLElement,
+    cached: CachedData,
+    services: {
+      calculateTir: CalculateTimeInRange;
+      calculateVariability: CalculateVariability;
+      calculateGMI: CalculateGMI;
+      countEvents: CountCriticalEvents;
+      analyzeAdvanced: AnalyzeAdvancedMetrics;
+      calculateWeekly: CalculateWeeklyComparison;
+      calculateDailyTrends: CalculateDailyTrends;
+      analyzePatterns: AnalyzeHourlyPatterns;
+      calculateHeatmap: CalculateHourlyHeatmap;
+      calculateHistogram: CalculateDistributionHistogram;
+      calculatePeriodComparison: CalculatePeriodComparison;
+    }
+  ): void {
+    content.innerHTML = '';
+    if (this.viewMode === 'live') {
+      this.renderLiveView(content, cached.current, cached.history, cached.treatments, {
+        calculateTir: services.calculateTir,
+        calculateVariability: services.calculateVariability,
+        calculateGMI: services.calculateGMI,
+        countEvents: services.countEvents,
+      });
+    } else {
+      this.renderAnalysisView(content, cached.history, {
+        analyzeAdvanced: services.analyzeAdvanced,
+        calculateWeekly: services.calculateWeekly,
+        calculateDailyTrends: services.calculateDailyTrends,
+        analyzePatterns: services.analyzePatterns,
+        calculateHeatmap: services.calculateHeatmap,
+        calculateHistogram: services.calculateHistogram,
+        calculatePeriodComparison: services.calculatePeriodComparison,
+      });
+    }
+    DashboardSkeletonRenderer.applyStaggerAnimation(content);
+    content.scrollTop = this.lastScrollTop;
+  }
+
   private renderLiveView(
-    main: HTMLElement,
-    current: import('../../domain/models/GlucoseReading').GlucoseReading | null,
-    history: import('../../domain/models/GlucoseReading').GlucoseReading[],
+    container: HTMLElement,
+    current: GlucoseReading | null,
+    history: GlucoseReading[],
     treatments: Treatment[],
     services: {
       calculateTir: CalculateTimeInRange;
@@ -277,7 +442,7 @@ export class DashboardPage {
     }
   ): void {
     const currentContainer = document.createElement('div');
-    main.appendChild(currentContainer);
+    container.appendChild(currentContainer);
 
     if (current) {
       const previous = history.length > 1 ? history[1] : undefined;
@@ -291,37 +456,35 @@ export class DashboardPage {
     }
 
     const chartContainer = document.createElement('div');
-    main.appendChild(chartContainer);
+    container.appendChild(chartContainer);
     const chart = new GlucoseChart(chartContainer, this.selectedHours);
     chart.render(history, treatments);
 
     const statsContainer = document.createElement('div');
-    main.appendChild(statsContainer);
+    container.appendChild(statsContainer);
 
     if (history.length > 0) {
-      services.calculateTir.execute(history).then((tir) => {
-        const average =
-          history.reduce((sum, r) => sum + r.value, 0) / history.length;
-        const stats = new StatsPanel(statsContainer);
-        stats.render(tir, average);
-      });
+      const tir = services.calculateTir.execute(history);
+      const average = history.reduce((sum, r) => sum + r.value, 0) / history.length;
+      const stats = new StatsPanel(statsContainer);
+      stats.render(tir, average);
 
       const variability = services.calculateVariability.execute(history);
       const gmi = services.calculateGMI.execute(history);
       const events = services.countEvents.execute(history);
 
       const variabilityContainer = document.createElement('div');
-      main.appendChild(variabilityContainer);
+      container.appendChild(variabilityContainer);
       const variabilityPanel = new VariabilityPanel(variabilityContainer);
       variabilityPanel.render(variability, gmi);
 
       const eventsContainer = document.createElement('div');
-      main.appendChild(eventsContainer);
+      container.appendChild(eventsContainer);
       const eventsPanel = new EventsPanel(eventsContainer);
       eventsPanel.render(events);
 
       const treatmentsContainer = document.createElement('div');
-      main.appendChild(treatmentsContainer);
+      container.appendChild(treatmentsContainer);
       const treatmentsPanel = new TreatmentsPanel(treatmentsContainer);
       treatmentsPanel.render(treatments);
     } else {
@@ -333,8 +496,8 @@ export class DashboardPage {
   }
 
   private renderAnalysisView(
-    main: HTMLElement,
-    history: import('../../domain/models/GlucoseReading').GlucoseReading[],
+    container: HTMLElement,
+    history: GlucoseReading[],
     services: {
       analyzeAdvanced: AnalyzeAdvancedMetrics;
       calculateWeekly: CalculateWeeklyComparison;
@@ -349,7 +512,7 @@ export class DashboardPage {
       const noData = document.createElement('div');
       noData.className = 'card message';
       noData.textContent = 'Not enough historical data for this range.';
-      main.appendChild(noData);
+      container.appendChild(noData);
       return;
     }
 
@@ -359,70 +522,62 @@ export class DashboardPage {
 
     const dataQuality = new CalculateDataQuality().execute(history, this.selectedHours);
     const qualityContainer = document.createElement('div');
-    main.appendChild(qualityContainer);
+    container.appendChild(qualityContainer);
     const qualityIndicator = new DataQualityIndicator(qualityContainer);
     qualityIndicator.render(dataQuality);
 
     const periodComparison = services.calculatePeriodComparison.execute(history);
     if (periodComparison) {
       const comparisonContainer = document.createElement('div');
-      main.appendChild(comparisonContainer);
+      container.appendChild(comparisonContainer);
       const comparisonPanel = new PeriodComparisonPanel(comparisonContainer);
       comparisonPanel.render(periodComparison);
     }
 
     if (advancedMetrics) {
       const advancedContainer = document.createElement('div');
-      main.appendChild(advancedContainer);
+      container.appendChild(advancedContainer);
       const advancedPanel = new AdvancedMetricsPanel(advancedContainer);
       advancedPanel.render(advancedMetrics);
     }
 
     if (dailyTrends.length > 1) {
       const sparklineContainer = document.createElement('div');
-      main.appendChild(sparklineContainer);
+      container.appendChild(sparklineContainer);
       const sparkline = new TrendSparkline(sparklineContainer);
       sparkline.render(dailyTrends);
     }
 
     const heatmapData = services.calculateHeatmap.execute(history);
     const heatmapContainer = document.createElement('div');
-    main.appendChild(heatmapContainer);
+    container.appendChild(heatmapContainer);
     const heatmap = new HourlyHeatmap(heatmapContainer);
     heatmap.render(heatmapData);
 
     const histogramData = services.calculateHistogram.execute(history);
     const histogramContainer = document.createElement('div');
-    main.appendChild(histogramContainer);
+    container.appendChild(histogramContainer);
     const histogram = new DistributionHistogram(histogramContainer);
     histogram.render(histogramData);
 
     if (weeklyMetrics.length > 0) {
       const weeklyContainer = document.createElement('div');
-      main.appendChild(weeklyContainer);
+      container.appendChild(weeklyContainer);
       const weeklyPanel = new WeeklyComparisonPanel(weeklyContainer);
       weeklyPanel.render(weeklyMetrics);
     }
 
     const patterns = services.analyzePatterns.execute(history);
     const patternsContainer = document.createElement('div');
-    main.appendChild(patternsContainer);
+    container.appendChild(patternsContainer);
     const patternsPanel = new PatternsPanel(patternsContainer);
     patternsPanel.render(patterns);
   }
 
-  private showLoading(main: HTMLElement): void {
-    main.innerHTML = '';
-    const msg = document.createElement('div');
-    msg.className = 'message';
-    msg.textContent = 'Loading...';
-    main.appendChild(msg);
-  }
-
-  private showError(main: HTMLElement, message: string): void {
-    main.innerHTML = '';
+  private showError(container: HTMLElement, message: string): void {
+    container.innerHTML = '';
     const wrapper = document.createElement('div');
-    wrapper.className = 'card';
+    wrapper.className = 'card animate-fade-in-up';
 
     const msg = document.createElement('div');
     msg.className = 'message message-error';
@@ -435,8 +590,12 @@ export class DashboardPage {
     hint.textContent = 'Check the URL or your internet connection. You can also change the configuration below.';
     wrapper.appendChild(hint);
 
-    wrapper.appendChild(this.createSettingsButton());
-    main.appendChild(wrapper);
+    const btnWrapper = document.createElement('div');
+    btnWrapper.style.marginTop = 'var(--spacing-md)';
+    btnWrapper.appendChild(this.createSettingsButton());
+    wrapper.appendChild(btnWrapper);
+
+    container.appendChild(wrapper);
   }
 
   unmount(): void {
@@ -444,5 +603,6 @@ export class DashboardPage {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    this.cache.clear();
   }
 }
