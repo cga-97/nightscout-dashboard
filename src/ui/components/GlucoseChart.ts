@@ -5,6 +5,19 @@ const CANVAS_HEIGHT = 160;
 const CANVAS_WIDTH = 640;
 const PADDING = 16;
 
+/**
+ * Renders a Canvas2D glucose chart with:
+ * - Time-series line with glow effect and gradient area fill
+ * - Target range band (low-high thresholds)
+ * - Data point markers with color coding
+ * - Min/max peak highlights
+ * - Treatment markers (carbs as circles, insulin as triangles)
+ * - Interactive tooltip on hover/touch
+ *
+ * Performance note: The canvas element is recreated on each render()
+ * call. For large datasets, consider reusing the canvas element and
+ * only redrawing when data changes.
+ */
 export class GlucoseChart {
   private readonly container: HTMLElement;
   private readonly hoursToShow: number;
@@ -14,7 +27,16 @@ export class GlucoseChart {
     this.hoursToShow = hoursToShow;
   }
 
+  /**
+   * Resets any interaction state before the canvas is recreated.
+   * When attachInteraction() is added, null out tooltip refs, plottedPoints, and canvasRect here.
+   */
+  private cleanupListeners(): void {
+  }
+
+  /** Renders the chart into the container element, recreating the canvas. */
   render(readings: GlucoseReading[], treatments: Treatment[] = []): void {
+    this.cleanupListeners();
     this.container.innerHTML = '';
 
     if (readings.length === 0) {
@@ -67,6 +89,12 @@ export class GlucoseChart {
     this.draw(canvas, readings, treatments);
   }
 
+  /**
+   * Draws the complete chart on the canvas.
+   * Steps: filter data by time window → compute scales → draw range band →
+   * draw area fill → draw main line → draw data points → draw peak highlights →
+   * draw treatment markers → draw axis labels.
+   */
   private draw(canvas: HTMLCanvasElement, readings: GlucoseReading[], treatments: Treatment[] = []): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -75,6 +103,9 @@ export class GlucoseChart {
 
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return;
+    }
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
@@ -213,6 +244,7 @@ export class GlucoseChart {
     ctx.fillText(String(Math.round(minValue)), PADDING - 4, height - PADDING);
   }
 
+  /** Renders a fallback message when there is not enough data to draw. */
   private drawEmpty(
     ctx: CanvasRenderingContext2D,
     width: number,
