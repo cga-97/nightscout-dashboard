@@ -23,6 +23,38 @@ interface NightscoutStatus {
   };
 }
 
+// --- Runtime type guards for API responses ---
+
+function isNightscoutEntry(obj: unknown): obj is NightscoutEntry {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    (typeof o.sgv === 'number' || typeof o.sgv === 'string') &&
+    typeof o.date === 'number'
+  );
+}
+
+function isNightscoutEntryArray(data: unknown): data is NightscoutEntry[] {
+  return Array.isArray(data) && data.every(isNightscoutEntry);
+}
+
+function isNightscoutTreatment(obj: unknown): obj is NightscoutTreatment {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return typeof o.created_at === 'string';
+}
+
+function isNightscoutTreatmentArray(data: unknown): data is NightscoutTreatment[] {
+  return Array.isArray(data) && data.every(isNightscoutTreatment);
+}
+
+function isNightscoutStatus(obj: unknown): obj is NightscoutStatus {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  if (o.settings !== undefined && typeof o.settings !== 'object') return false;
+  return true;
+}
+
 export class NightscoutApiClient extends NightscoutRepository {
   private readonly baseUrl: string;
   private readonly apiSecret: string | undefined;
@@ -43,6 +75,10 @@ export class NightscoutApiClient extends NightscoutRepository {
   async detectUnits(): Promise<void> {
     try {
       const status = await this.request<NightscoutStatus>('/api/v1/status.json');
+      if (!isNightscoutStatus(status)) {
+        console.warn('Unexpected status response format from Nightscout API');
+        return;
+      }
       const raw = status.settings?.units?.toLowerCase() ?? '';
       if (raw === 'mmol' || raw === 'mmol/l') {
         this.units = 'mmol/L';
@@ -69,7 +105,7 @@ export class NightscoutApiClient extends NightscoutRepository {
     const entries = await this.request<NightscoutEntry[]>(
       '/api/v1/entries.json?count=1'
     );
-    if (!Array.isArray(entries) || entries.length === 0) {
+    if (!isNightscoutEntryArray(entries) || entries.length === 0) {
       return null;
     }
     const value =
@@ -144,7 +180,7 @@ export class NightscoutApiClient extends NightscoutRepository {
       '/api/v1/entries.json?count=1'
     );
 
-    if (!Array.isArray(entries) || entries.length === 0) {
+    if (!isNightscoutEntryArray(entries) || entries.length === 0) {
       return null;
     }
 
@@ -160,7 +196,7 @@ export class NightscoutApiClient extends NightscoutRepository {
       `/api/v1/entries.json?find[date][$gte]=${cutoffEpoch}&count=10000`
     );
 
-    if (!Array.isArray(entries)) {
+    if (!isNightscoutEntryArray(entries)) {
       return [];
     }
 
@@ -173,7 +209,7 @@ export class NightscoutApiClient extends NightscoutRepository {
       `/api/v1/treatments.json?find[created_at][$gte]=${encodeURIComponent(sinceIso)}`
     );
 
-    if (!Array.isArray(treatments)) {
+    if (!isNightscoutTreatmentArray(treatments)) {
       return [];
     }
 

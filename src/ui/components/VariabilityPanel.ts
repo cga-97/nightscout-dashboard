@@ -43,8 +43,7 @@ export class VariabilityPanel {
     // SD
     const sdCard = document.createElement('div');
     const sdLabel = document.createElement('div');
-    sdLabel.style.fontSize = 'var(--font-sm)';
-    sdLabel.style.color = 'var(--text-secondary)';
+    sdLabel.className = 'text-sm text-secondary';
     sdLabel.textContent = 'SD (mg/dL)';
     sdCard.appendChild(sdLabel);
 
@@ -58,8 +57,7 @@ export class VariabilityPanel {
     // CV
     const cvCard = document.createElement('div');
     const cvLabel = document.createElement('div');
-    cvLabel.style.fontSize = 'var(--font-sm)';
-    cvLabel.style.color = 'var(--text-secondary)';
+    cvLabel.className = 'text-sm text-secondary';
     cvLabel.textContent = 'CV (%)';
     cvCard.appendChild(cvLabel);
 
@@ -73,8 +71,7 @@ export class VariabilityPanel {
     // Min / Max
     const minMaxCard = document.createElement('div');
     const minMaxLabel = document.createElement('div');
-    minMaxLabel.style.fontSize = 'var(--font-sm)';
-    minMaxLabel.style.color = 'var(--text-secondary)';
+    minMaxLabel.className = 'text-sm text-secondary';
     minMaxLabel.textContent = 'Min / Max Glucose';
     minMaxCard.appendChild(minMaxLabel);
 
@@ -99,8 +96,7 @@ export class VariabilityPanel {
     // GMI
     const gmiCard = document.createElement('div');
     const gmiLabel = document.createElement('div');
-    gmiLabel.style.fontSize = 'var(--font-sm)';
-    gmiLabel.style.color = 'var(--text-secondary)';
+    gmiLabel.className = 'text-sm text-secondary';
     gmiLabel.textContent = 'GMI (%)';
     gmiCard.appendChild(gmiLabel);
 

@@ -33,7 +33,6 @@ export class TreatmentsPanel {
 
     const table = document.createElement('table');
     table.className = 'comparison-table';
-    table.style.marginTop = '0';
 
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
@@ -42,7 +41,7 @@ export class TreatmentsPanel {
       const th = document.createElement('th');
       th.textContent = text;
       if (index >= 2) {
-        th.style.textAlign = 'right';
+        th.classList.add('text-right');
       }
       headerRow.appendChild(th);
     });
@@ -62,25 +61,23 @@ export class TreatmentsPanel {
       row.appendChild(typeCell);
 
       const carbsCell = document.createElement('td');
+      carbsCell.className = 'text-right';
       if (treatment.carbs !== undefined && treatment.carbs > 0) {
         carbsCell.textContent = `${treatment.carbs} g`;
-        carbsCell.style.color = '#f59e0b';
-        carbsCell.style.fontWeight = '600';
+        carbsCell.classList.add('text-carbs', 'font-semibold');
       } else {
         carbsCell.textContent = '-';
       }
-      carbsCell.style.textAlign = 'right';
       row.appendChild(carbsCell);
 
       const insulinCell = document.createElement('td');
+      insulinCell.className = 'text-right';
       if (treatment.insulin !== undefined && treatment.insulin > 0) {
         insulinCell.textContent = `${treatment.insulin} U`;
-        insulinCell.style.color = '#3b82f6';
-        insulinCell.style.fontWeight = '600';
+        insulinCell.classList.add('text-insulin', 'font-semibold');
       } else {
         insulinCell.textContent = '-';
       }
-      insulinCell.style.textAlign = 'right';
       row.appendChild(insulinCell);
 
       tbody.appendChild(row);

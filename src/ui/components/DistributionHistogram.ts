@@ -23,51 +23,35 @@ export class DistributionHistogram {
 
     if (data.totalReadings === 0 || data.bins.length === 0) {
       const empty = document.createElement('div');
-      empty.textContent = 'No data available';
-      empty.style.color = 'var(--text-secondary)';
-      empty.style.fontSize = 'var(--font-sm)';
+      empty.className = 'text-secondary text-sm';
       empty.style.padding = '16px 0';
+      empty.textContent = 'No data available';
       wrapper.appendChild(empty);
       this.container.appendChild(wrapper);
       return;
     }
 
     const chart = document.createElement('div');
-    chart.style.display = 'flex';
-    chart.style.flexDirection = 'column';
-    chart.style.gap = '10px';
-    chart.style.marginTop = '12px';
+    chart.className = 'flex flex-col gap-10 mt-12';
 
     data.bins.forEach((bin) => {
       const row = document.createElement('div');
-      row.style.display = 'grid';
-      row.style.gridTemplateColumns = '60px 1fr 40px';
-      row.style.alignItems = 'center';
-      row.style.gap = '12px';
+      row.className = 'grid items-center histogram-grid gap-12';
 
       const label = document.createElement('div');
+      label.className = 'text-sm text-secondary text-right text-nowrap';
       label.textContent = `${Math.round(bin.rangeStart)}-${Math.round(bin.rangeEnd)}`;
-      label.style.fontSize = 'var(--font-sm)';
-      label.style.color = 'var(--text-secondary)';
-      label.style.textAlign = 'right';
-      label.style.whiteSpace = 'nowrap';
       row.appendChild(label);
 
       const track = document.createElement('div');
-      track.style.height = '22px';
-      track.style.backgroundColor = '#f1f5f9';
-      track.style.borderRadius = '4px';
-      track.style.overflow = 'hidden';
-      track.style.position = 'relative';
+      track.className = 'h-22 bg-slate-100 rounded overflow-hidden relative';
 
       // Subtle vertical grid lines at 25%, 50%, 75%
       const grid = document.createElement('div');
-      grid.style.position = 'absolute';
-      grid.style.inset = '0';
-      grid.style.pointerEvents = 'none';
+      grid.className = 'absolute inset-0 pointer-events-none';
       [25, 50, 75].forEach((pct) => {
         const line = document.createElement('div');
-        line.style.position = 'absolute';
+        line.className = 'absolute';
         line.style.left = `${pct}%`;
         line.style.top = '0';
         line.style.bottom = '0';
@@ -78,9 +62,8 @@ export class DistributionHistogram {
       track.appendChild(grid);
 
       const fill = document.createElement('div');
-      fill.style.height = '100%';
+      fill.className = 'h-full rounded';
       fill.style.width = `${Math.min(100, Math.max(0, bin.percentage))}%`;
-      fill.style.borderRadius = '4px';
       fill.style.background = this.getBarBackground(
         bin,
         data.lowThreshold,
@@ -91,10 +74,8 @@ export class DistributionHistogram {
       row.appendChild(track);
 
       const pctLabel = document.createElement('div');
+      pctLabel.className = 'text-sm text-secondary text-left';
       pctLabel.textContent = `${Math.round(bin.percentage)}%`;
-      pctLabel.style.fontSize = 'var(--font-sm)';
-      pctLabel.style.color = 'var(--text-secondary)';
-      pctLabel.style.textAlign = 'left';
       row.appendChild(pctLabel);
 
       chart.appendChild(row);

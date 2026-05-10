@@ -53,14 +53,12 @@ export class HourlyHeatmap {
     wrapper.appendChild(title);
 
     const scrollWrapper = document.createElement('div');
-    scrollWrapper.style.overflowX = 'auto';
-    scrollWrapper.style.width = '100%';
+    scrollWrapper.className = 'overflow-x-auto w-full';
 
     const grid = document.createElement('div');
-    grid.style.display = 'grid';
+    grid.className = 'grid items-center';
     grid.style.gridTemplateColumns = `auto repeat(24, minmax(8px, 16px))`;
     grid.style.gap = '2px';
-    grid.style.alignItems = 'center';
 
     // Empty top-left corner
     grid.appendChild(document.createElement('div'));
@@ -68,9 +66,7 @@ export class HourlyHeatmap {
     // Hour labels
     for (let h = 0; h < 24; h++) {
       const header = document.createElement('div');
-      header.style.textAlign = 'center';
-      header.style.fontSize = 'var(--font-xs, 10px)';
-      header.style.color = 'var(--text-secondary)';
+      header.className = 'text-center text-xs text-secondary';
       if (h % 4 === 0) {
         header.textContent = h.toString();
       }
@@ -91,21 +87,16 @@ export class HourlyHeatmap {
     for (let d = 0; d < 7; d++) {
       const dayLabel = document.createElement('div');
       dayLabel.textContent = DAY_LABELS[d];
-      dayLabel.style.fontSize = 'var(--font-sm)';
-      dayLabel.style.color = 'var(--text-secondary)';
-      dayLabel.style.paddingRight = '8px';
-      dayLabel.style.whiteSpace = 'nowrap';
+      dayLabel.className = 'text-sm text-secondary pr-8 text-nowrap';
       grid.appendChild(dayLabel);
 
       for (let h = 0; h < 24; h++) {
         const cellData = cellMap.get(`${d}-${h}`);
         const cell = document.createElement('div');
-        cell.style.aspectRatio = '1 / 1';
-        cell.style.borderRadius = '2px';
-        cell.style.minWidth = '8px';
+        cell.className = 'aspect-square rounded-sm min-w-8';
 
         if (!cellData || cellData.readingsCount === 0) {
-          cell.style.backgroundColor = '#f3f4f6';
+          cell.classList.add('bg-gray-100');
           cell.title = `${DAY_LABELS[d]} ${h}:00 — No data`;
         } else {
           const color = getCellColor(
@@ -129,13 +120,7 @@ export class HourlyHeatmap {
 
     // Legend
     const legend = document.createElement('div');
-    legend.style.display = 'flex';
-    legend.style.alignItems = 'center';
-    legend.style.gap = '12px';
-    legend.style.marginTop = '12px';
-    legend.style.fontSize = 'var(--font-sm)';
-    legend.style.color = 'var(--text-secondary)';
-    legend.style.flexWrap = 'wrap';
+    legend.className = 'flex items-center gap-12 mt-12 text-sm text-secondary flex-wrap';
 
     legend.appendChild(createLegendItem('#60a5fa', `Below ${data.lowThreshold}`));
     legend.appendChild(
@@ -143,15 +128,10 @@ export class HourlyHeatmap {
     );
 
     const highGradientBox = document.createElement('div');
-    highGradientBox.style.display = 'flex';
-    highGradientBox.style.alignItems = 'center';
-    highGradientBox.style.gap = '4px';
+    highGradientBox.className = 'flex items-center gap-1';
 
     const highBox = document.createElement('div');
-    highBox.style.width = '24px';
-    highBox.style.height = '12px';
-    highBox.style.borderRadius = '2px';
-    highBox.style.background = 'linear-gradient(to right, #fbbf24, #f87171)';
+    highBox.className = 'w-24 h-12 rounded-sm bg-gradient-high';
     highGradientBox.appendChild(highBox);
 
     const highText = document.createElement('span');
@@ -168,14 +148,10 @@ export class HourlyHeatmap {
 
 function createLegendItem(color: string, label: string): HTMLElement {
   const item = document.createElement('div');
-  item.style.display = 'flex';
-  item.style.alignItems = 'center';
-  item.style.gap = '4px';
+  item.className = 'flex items-center gap-1';
 
   const box = document.createElement('div');
-  box.style.width = '12px';
-  box.style.height = '12px';
-  box.style.borderRadius = '2px';
+  box.className = 'w-12 h-12 rounded-sm';
   box.style.backgroundColor = color;
   item.appendChild(box);
 

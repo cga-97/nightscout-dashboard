@@ -40,9 +40,7 @@ export class EventsPanel {
     wrapper.appendChild(grid);
 
     const label = document.createElement('div');
-    label.style.fontSize = 'var(--font-sm)';
-    label.style.color = 'var(--text-secondary)';
-    label.style.marginTop = 'var(--spacing-sm)';
+    label.className = 'text-sm text-secondary mt-sm';
     label.textContent = 'Counts from the selected period.';
     wrapper.appendChild(label);
 
@@ -54,8 +52,7 @@ export class EventsPanel {
     card.className = 'event-badge';
 
     const label = document.createElement('div');
-    label.style.fontSize = 'var(--font-sm)';
-    label.style.color = 'var(--text-secondary)';
+    label.className = 'text-sm text-secondary';
     label.textContent = labelText;
     card.appendChild(label);
 

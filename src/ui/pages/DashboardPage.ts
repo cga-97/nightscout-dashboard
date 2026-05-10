@@ -105,6 +105,7 @@ export class DashboardPage {
 
     const header = document.createElement('header');
     header.className = 'header';
+    header.setAttribute('role', 'banner');
     const headerTitle = document.createElement('h1');
     headerTitle.textContent = 'Nightscout Dashboard';
     header.appendChild(headerTitle);
@@ -120,10 +121,12 @@ export class DashboardPage {
     const main = document.createElement('main');
     main.className = 'main';
     main.id = 'dashboard-main';
+    main.setAttribute('role', 'main');
     this.app.appendChild(main);
 
     const footer = document.createElement('footer');
     footer.className = 'footer';
+    footer.setAttribute('role', 'contentinfo');
     footer.textContent = 'Nightscout Dashboard';
     this.app.appendChild(footer);
 
@@ -147,6 +150,7 @@ export class DashboardPage {
     btn.className = 'btn btn-sm btn-ghost';
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`;
     btn.title = 'Enable notifications';
+    btn.setAttribute('aria-label', 'Enable notifications');
     btn.addEventListener('click', async () => {
       const granted = await this.notificationService.requestPermission();
       if (granted) {

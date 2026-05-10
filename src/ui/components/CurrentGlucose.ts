@@ -70,9 +70,7 @@ export class CurrentGlucose {
     wrapper.appendChild(meta);
 
     const time = document.createElement('div');
-    time.style.fontSize = 'var(--font-sm)';
-    time.style.color = 'var(--text-secondary)';
-    time.style.marginTop = 'var(--spacing-xs)';
+    time.className = 'text-sm text-secondary mt-xs';
     time.textContent = this.formatTime(reading.timestamp);
     wrapper.appendChild(time);
 

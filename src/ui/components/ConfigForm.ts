@@ -39,10 +39,12 @@ export class ConfigForm {
     baseUrlInput.className = 'form-input';
     baseUrlInput.placeholder = 'https://my-site.herokuapp.com';
     baseUrlInput.required = true;
+    baseUrlInput.setAttribute('aria-describedby', 'ns-base-url-hint');
     baseUrlGroup.appendChild(baseUrlInput);
 
     const baseUrlHint = document.createElement('div');
     baseUrlHint.className = 'form-hint';
+    baseUrlHint.id = 'ns-base-url-hint';
     baseUrlHint.textContent = 'Your Nightscout site URL, e.g. https://my-site.herokuapp.com';
     baseUrlGroup.appendChild(baseUrlHint);
 
@@ -65,8 +67,7 @@ export class ConfigForm {
     secretGroup.appendChild(secretInput);
 
     const secretHint = document.createElement('div');
-    secretHint.className = 'form-hint';
-    secretHint.style.color = 'var(--color-border)';
+    secretHint.className = 'form-hint form-hint-warning';
     secretHint.textContent = 'Your API secret is stored only for this browser session and will be cleared when you close the tab.';
     secretGroup.appendChild(secretHint);
 
@@ -115,8 +116,7 @@ export class ConfigForm {
     form.appendChild(highGroup);
 
     const errorMsg = document.createElement('div');
-    errorMsg.className = 'message message-error';
-    errorMsg.style.display = 'none';
+    errorMsg.className = 'message message-error hidden';
     errorMsg.id = 'ns-config-error';
     form.appendChild(errorMsg);
 
@@ -138,7 +138,7 @@ export class ConfigForm {
     const highStr = String(formData.get('highThreshold') ?? '').trim();
 
     const errorEl = form.querySelector<HTMLElement>('#ns-config-error');
-    if (errorEl) errorEl.style.display = 'none';
+    if (errorEl) errorEl.classList.add('hidden');
 
     if (!baseUrl) {
       return;
@@ -150,7 +150,7 @@ export class ConfigForm {
     if (Number.isNaN(low) || Number.isNaN(high) || low <= 0 || high <= 0) {
       if (errorEl) {
         errorEl.textContent = 'Thresholds must be positive numbers.';
-        errorEl.style.display = 'block';
+        errorEl.classList.remove('hidden');
       }
       return;
     }
@@ -158,7 +158,7 @@ export class ConfigForm {
     if (low >= high) {
       if (errorEl) {
         errorEl.textContent = 'Low threshold must be less than high threshold.';
-        errorEl.style.display = 'block';
+        errorEl.classList.remove('hidden');
       }
       return;
     }

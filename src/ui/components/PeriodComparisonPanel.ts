@@ -19,9 +19,8 @@ export class PeriodComparisonPanel {
     wrapper.appendChild(title);
 
     const grid = document.createElement('div');
-    grid.style.display = 'grid';
+    grid.className = 'grid gap-lg';
     grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
-    grid.style.gap = 'var(--spacing-lg)';
 
     grid.appendChild(this.createPeriodCard('Previous Period', comparison.previousPeriod));
     grid.appendChild(this.createCurrentPeriodCard(comparison));
@@ -77,23 +76,18 @@ export class PeriodComparisonPanel {
     type?: 'tir' | 'average' | 'cv'
   ): HTMLElement {
     const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.justifyContent = 'space-between';
+    row.className = 'flex items-center justify-between border-bottom';
     row.style.padding = 'var(--spacing-xs) 0';
-    row.style.borderBottom = '1px solid var(--bg-tertiary)';
 
     const left = document.createElement('div');
 
     const valEl = document.createElement('span');
-    valEl.className = 'metric-value';
-    valEl.style.fontSize = 'var(--font-lg)';
+    valEl.className = 'metric-value text-lg';
     valEl.textContent = value;
     left.appendChild(valEl);
 
     const labEl = document.createElement('span');
-    labEl.className = 'metric-label';
-    labEl.style.marginLeft = 'var(--spacing-sm)';
+    labEl.className = 'metric-label ml-sm';
     labEl.textContent = label;
     left.appendChild(labEl);
 
@@ -105,11 +99,10 @@ export class PeriodComparisonPanel {
 
       const changeEl = document.createElement('span');
       changeEl.textContent = changeText;
-      changeEl.style.fontWeight = '600';
-      changeEl.style.fontSize = 'var(--font-md)';
+      changeEl.className = 'font-semibold text-md';
 
       if (change === 0) {
-        changeEl.style.color = 'var(--text-secondary)';
+        changeEl.classList.add('text-secondary');
       } else {
         const isGood = this.isGoodChange(change, type);
         changeEl.className = isGood ? 'in-range' : 'out-of-range';

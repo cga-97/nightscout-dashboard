@@ -41,34 +41,20 @@ export class GlucoseChart {
     // Legend for treatments
     if (treatments.length > 0) {
       const legend = document.createElement('div');
-      legend.style.display = 'flex';
-      legend.style.gap = 'var(--spacing-md)';
-      legend.style.marginTop = 'var(--spacing-sm)';
-      legend.style.fontSize = 'var(--font-sm)';
-      legend.style.color = 'var(--text-secondary)';
+      legend.className = 'flex gap-md mt-sm text-sm text-secondary';
 
       const carbLegend = document.createElement('div');
-      carbLegend.style.display = 'flex';
-      carbLegend.style.alignItems = 'center';
-      carbLegend.style.gap = '4px';
+      carbLegend.className = 'flex items-center gap-1';
       const carbDot = document.createElement('span');
-      carbDot.style.width = '8px';
-      carbDot.style.height = '8px';
-      carbDot.style.borderRadius = '50%';
-      carbDot.style.backgroundColor = '#f59e0b';
+      carbDot.className = 'w-8 h-8 rounded-full bg-carbs';
       carbLegend.appendChild(carbDot);
       carbLegend.appendChild(document.createTextNode('Carbs'));
       legend.appendChild(carbLegend);
 
       const insulinLegend = document.createElement('div');
-      insulinLegend.style.display = 'flex';
-      insulinLegend.style.alignItems = 'center';
-      insulinLegend.style.gap = '4px';
+      insulinLegend.className = 'flex items-center gap-1';
       const insulinDot = document.createElement('span');
-      insulinDot.style.width = '8px';
-      insulinDot.style.height = '8px';
-      insulinDot.style.borderRadius = '50%';
-      insulinDot.style.backgroundColor = '#3b82f6';
+      insulinDot.className = 'w-8 h-8 rounded-full bg-insulin';
       insulinLegend.appendChild(insulinDot);
       insulinLegend.appendChild(document.createTextNode('Insulin'));
       legend.appendChild(insulinLegend);

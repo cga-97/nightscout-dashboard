@@ -30,6 +30,9 @@ export class ViewModeSelector {
         btn.classList.add('active');
       }
       btn.textContent = opt.label;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(opt.mode === this.activeMode));
+      btn.setAttribute('aria-label', `${opt.label} view mode`);
 
       btn.addEventListener('click', () => {
         if (this.activeMode !== opt.mode) {

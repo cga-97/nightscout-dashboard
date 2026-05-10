@@ -35,6 +35,9 @@ export class RangeSelector {
         btn.classList.add('active');
       }
       btn.textContent = opt.label;
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(opt.hours === this.activeHours));
+      btn.setAttribute('aria-label', `Show ${opt.label} range`);
 
       btn.addEventListener('click', () => {
         if (this.activeHours !== opt.hours) {

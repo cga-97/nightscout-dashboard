@@ -23,8 +23,7 @@ export class StatsPanel {
 
     const tirCard = document.createElement('div');
     const tirLabel = document.createElement('div');
-    tirLabel.style.fontSize = 'var(--font-sm)';
-    tirLabel.style.color = 'var(--text-secondary)';
+    tirLabel.className = 'text-sm text-secondary';
     tirLabel.textContent = `Time in Range (${timeInRange.low}-${timeInRange.high})`;
     tirCard.appendChild(tirLabel);
 
@@ -39,8 +38,7 @@ export class StatsPanel {
 
     const avgCard = document.createElement('div');
     const avgLabel = document.createElement('div');
-    avgLabel.style.fontSize = 'var(--font-sm)';
-    avgLabel.style.color = 'var(--text-secondary)';
+    avgLabel.className = 'text-sm text-secondary';
     avgLabel.textContent = 'Average Glucose';
     avgCard.appendChild(avgLabel);
 

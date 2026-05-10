@@ -10,6 +10,7 @@ export class SettingsModal {
   private config: StorageConfig;
   private thresholds: ThresholdConfig;
   private overlay: HTMLElement | null = null;
+  private previousFocus: HTMLElement | null = null;
 
   constructor(
     config: StorageConfig,
@@ -26,6 +27,8 @@ export class SettingsModal {
       return;
     }
 
+    this.previousFocus = document.activeElement as HTMLElement;
+
     this.overlay = document.createElement('div');
     this.overlay.className = 'modal-overlay';
     this.overlay.addEventListener('click', (e) => {
@@ -36,6 +39,9 @@ export class SettingsModal {
 
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'modal-title');
     modal.addEventListener('click', (e) => e.stopPropagation());
 
     // Header
@@ -44,6 +50,7 @@ export class SettingsModal {
 
     const title = document.createElement('div');
     title.className = 'modal-title';
+    title.id = 'modal-title';
     title.textContent = 'Settings';
     header.appendChild(title);
 
@@ -73,8 +80,7 @@ export class SettingsModal {
     form.appendChild(this.createFormGroup('API Secret (optional)', 'ns-modal-api-secret', 'password', this.config.apiSecret ?? '', 'Your API secret'));
 
     const secretHint = document.createElement('div');
-    secretHint.className = 'form-hint';
-    secretHint.style.color = 'var(--color-border)';
+    secretHint.className = 'form-hint form-hint-warning';
     secretHint.textContent = 'Your API secret is stored only for this browser session and will be cleared when you close the tab.';
     form.appendChild(secretHint);
 
@@ -86,10 +92,7 @@ export class SettingsModal {
 
     // Error message
     const errorMsg = document.createElement('div');
-    errorMsg.className = 'message message-error';
-    errorMsg.style.display = 'none';
-    errorMsg.style.padding = 'var(--spacing-sm)';
-    errorMsg.style.marginBottom = 'var(--spacing-md)';
+    errorMsg.className = 'message message-error hidden p-sm mb-md';
     errorMsg.id = 'ns-modal-error';
     form.appendChild(errorMsg);
 
@@ -163,12 +166,12 @@ export class SettingsModal {
     const highStr = (form.querySelector<HTMLInputElement>('#ns-modal-high')?.value ?? '').trim();
 
     const errorEl = form.querySelector<HTMLElement>('#ns-modal-error');
-    if (errorEl) errorEl.style.display = 'none';
+    if (errorEl) errorEl.classList.add('hidden');
 
     if (!baseUrl) {
       if (errorEl) {
         errorEl.textContent = 'Nightscout URL is required.';
-        errorEl.style.display = 'block';
+        errorEl.classList.remove('hidden');
       }
       return;
     }
@@ -179,7 +182,7 @@ export class SettingsModal {
     if (Number.isNaN(low) || Number.isNaN(high) || low <= 0 || high <= 0) {
       if (errorEl) {
         errorEl.textContent = 'Thresholds must be positive numbers.';
-        errorEl.style.display = 'block';
+        errorEl.classList.remove('hidden');
       }
       return;
     }
@@ -187,7 +190,7 @@ export class SettingsModal {
     if (low >= high) {
       if (errorEl) {
         errorEl.textContent = 'Low threshold must be less than high threshold.';
-        errorEl.style.display = 'block';
+        errorEl.classList.remove('hidden');
       }
       return;
     }
@@ -215,6 +218,9 @@ export class SettingsModal {
       this.overlay = null;
     }
     document.body.style.overflow = '';
+    if (this.previousFocus && typeof this.previousFocus.focus === 'function') {
+      this.previousFocus.focus();
+    }
     this.onClose(result);
   }
 }

@@ -589,3 +589,129 @@ body {
     justify-content: flex-end;
   }
 }
+
+/* ========================================
+   Utility Classes (replaces inline styles)
+   ======================================== */
+
+/* Display */
+.hidden { display: none !important; }
+.block { display: block; }
+.inline-block { display: inline-block; }
+.flex { display: flex; }
+.grid { display: grid; }
+
+/* Flexbox */
+.items-center { align-items: center; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.justify-between { justify-content: space-between; }
+
+/* Text alignment */
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-nowrap { white-space: nowrap; }
+
+/* Font size */
+.text-xs { font-size: var(--font-xs, 10px); }
+.text-sm { font-size: var(--font-sm); }
+.text-md { font-size: var(--font-md); }
+.text-lg { font-size: var(--font-lg); }
+
+/* Font weight */
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-extrabold { font-weight: 800; }
+
+/* Text color */
+.text-secondary { color: var(--text-secondary); }
+.text-warning { color: var(--color-border); }
+.text-insulin { color: #3b82f6; }
+.text-carbs { color: #f59e0b; }
+
+/* Spacing (margin) */
+.mt-xs { margin-top: var(--spacing-xs); }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.mb-xs { margin-bottom: var(--spacing-xs); }
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+.ml-sm { margin-left: var(--spacing-sm); }
+
+/* Padding */
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.pr-8 { padding-right: 8px; }
+
+/* Gap */
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 2px; }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+.gap-lg { gap: var(--spacing-lg); }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+.mt-12 { margin-top: 12px; }
+
+/* Width */
+.w-full { width: 100%; }
+.w-8 { width: 8px; }
+.w-12 { width: 12px; }
+.w-24 { width: 24px; }
+.min-w-8 { min-width: 8px; }
+.min-w-280 { min-width: 280px; }
+.min-w-600 { min-width: 600px; }
+
+/* Height */
+.h-full { height: 100%; }
+.h-8 { height: 8px; }
+.h-12 { height: 12px; }
+.h-22 { height: 22px; }
+
+/* Flex */
+.flex-1 { flex: 1; }
+.flex-shrink-0 { flex-shrink: 0; }
+
+/* Opacity */
+.opacity-full { opacity: 1; }
+.opacity-half { opacity: 0.5; }
+.opacity-80 { opacity: 0.8; }
+
+/* Position */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { inset: 0; }
+.pointer-events-none { pointer-events: none; }
+
+/* Overflow */
+.overflow-hidden { overflow: hidden; }
+.overflow-x-auto { overflow-x: auto; }
+
+/* Background */
+.bg-slate-100 { background-color: #f1f5f9; }
+.bg-gray-100 { background-color: #f3f4f6; }
+.bg-carbs { background-color: #f59e0b; }
+.bg-insulin { background-color: #3b82f6; }
+.bg-gradient-high { background: linear-gradient(to right, #fbbf24, #f87171); }
+
+/* Borders */
+.rounded-sm { border-radius: 2px; }
+.rounded { border-radius: 4px; }
+.rounded-full { border-radius: 50%; }
+
+/* Aspect ratio */
+.aspect-square { aspect-ratio: 1 / 1; }
+
+/* Border */
+.border-bottom { border-bottom: 1px solid var(--bg-tertiary); }
+
+/* Form */
+.form-hint-warning { color: var(--color-border); }
+
+/* Histogram */
+.histogram-grid { grid-template-columns: 60px 1fr 40px; }
